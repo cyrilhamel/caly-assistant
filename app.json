@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Caly",
+    "slug": "caly-assistant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#6200EE"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cyrilhamel.caly"
+    },
+    "android": {
+      "package": "com.cyrilhamel.caly"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
