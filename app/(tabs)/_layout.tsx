@@ -1,9 +1,27 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { colors } from '@/constants/theme';
 
 export default function TabLayout() {
   return (
-    <Tabs>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: colors.lightGray,
+        tabBarStyle: {
+          backgroundColor: colors.almostBlack,
+          borderTopColor: colors.gold,
+          borderTopWidth: 1,
+        },
+        headerStyle: {
+          backgroundColor: colors.almostBlack,
+        },
+        headerTintColor: colors.gold,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

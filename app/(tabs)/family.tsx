@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Card, Title, Paragraph, Button, Chip } from 'react-native-paper';
+import { colors, spacing } from '@/constants/theme';
 
 export default function Family() {
   return (
@@ -9,9 +10,9 @@ export default function Family() {
         <Paragraph>77h/semaine - Planification famille</Paragraph>
       </View>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>📊 Vue d'ensemble</Title>
+          <Title style={styles.cardTitle}>📊 Vue d'ensemble</Title>
           <View style={styles.overviewRow}>
             <View style={styles.overviewItem}>
               <Text style={styles.overviewValue}>12h</Text>
@@ -29,9 +30,9 @@ export default function Family() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>🏥 Rendez-vous Médicaux</Title>
+          <Title style={styles.cardTitle}>🏥 Rendez-vous Médicaux</Title>
           
           <View style={styles.appointment}>
             <View style={styles.appointmentTime}>
@@ -63,9 +64,9 @@ export default function Family() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>💊 Médicaments & Traitements</Title>
+          <Title style={styles.cardTitle}>💊 Médicaments & Traitements</Title>
           
           <View style={styles.medication}>
             <Text style={styles.medName}>Traitement femme</Text>
@@ -86,9 +87,9 @@ export default function Family() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>📅 Activités Enfants</Title>
+          <Title style={styles.cardTitle}>📅 Activités Enfants</Title>
           
           <View style={styles.activity}>
             <Text style={styles.activityTitle}>🎨 Atelier créatif</Text>
@@ -108,9 +109,9 @@ export default function Family() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>🍽️ Repas Planifiés</Title>
+          <Title style={styles.cardTitle}>🍽️ Repas Planifiés</Title>
           <View style={styles.mealPlan}>
             <Text style={styles.meal}>Déjeuner : Pâtes bolognaise</Text>
             <Text style={styles.meal}>Goûter : Fruits + gâteau</Text>
@@ -125,23 +126,28 @@ export default function Family() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 16,
+    backgroundColor: colors.almostBlack,
+    padding: spacing.md,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
+    paddingTop: spacing.sm,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: colors.gold,
   },
   card: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
+    backgroundColor: colors.darkGray,
+    borderWidth: 1,
+    borderColor: colors.gold,
   },
   overviewRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   overviewItem: {
     alignItems: 'center',
@@ -149,33 +155,33 @@ const styles = StyleSheet.create({
   overviewValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#6200EE',
+    color: colors.gold,
   },
   overviewLabel: {
     fontSize: 12,
-    color: '#666',
+    color: colors.lightGray,
     marginTop: 4,
   },
   appointment: {
     flexDirection: 'row',
-    marginVertical: 12,
-    paddingBottom: 12,
+    marginVertical: spacing.sm,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.mediumGray,
   },
   appointmentTime: {
-    marginRight: 16,
+    marginRight: spacing.md,
     alignItems: 'center',
     minWidth: 60,
   },
   time: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#6200EE',
+    color: colors.gold,
   },
   date: {
     fontSize: 12,
-    color: '#666',
+    color: colors.lightGray,
   },
   appointmentDetails: {
     flex: 1,
@@ -184,50 +190,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+    color: colors.white,
   },
   chip: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     alignSelf: 'flex-start',
   },
   chipText: {
     fontSize: 12,
   },
   addButton: {
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   medication: {
-    marginVertical: 12,
-    paddingBottom: 12,
+    marginVertical: spacing.sm,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.mediumGray,
   },
   medName: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+    color: colors.white,
   },
   medStatus: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   activity: {
-    marginVertical: 12,
-    paddingBottom: 12,
+    marginVertical: spacing.sm,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.mediumGray,
   },
   activityTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
+    color: colors.white,
   },
   mealPlan: {
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   meal: {
     fontSize: 14,
     marginVertical: 6,
-    paddingLeft: 8,
+    paddingLeft: spacing.sm,
+    color: colors.lightGray,
+  },
+  cardTitle: {
+    color: colors.gold,
+    fontSize: 18,
   },
 });

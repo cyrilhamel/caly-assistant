@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Card, Title, Paragraph, Button, Chip } from 'react-native-paper';
+import { colors, spacing } from '@/constants/theme';
 
 export default function Empire() {
   return (
@@ -9,9 +10,9 @@ export default function Empire() {
         <Paragraph>Monitoring clients & projets</Paragraph>
       </View>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>🚨 Alertes en Temps Réel</Title>
+          <Title style={styles.cardTitle}>🚨 Alertes en Temps Réel</Title>
           
           <View style={[styles.alert, styles.criticalAlert]}>
             <View style={styles.alertHeader}>
@@ -39,9 +40,9 @@ export default function Empire() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>📊 Vue d'ensemble Projets</Title>
+          <Title style={styles.cardTitle}>📊 Vue d'ensemble Projets</Title>
           
           <View style={styles.project}>
             <View style={styles.projectHeader}>
@@ -108,9 +109,9 @@ export default function Empire() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>📈 Performance 24h</Title>
+          <Title style={styles.cardTitle}>📈 Performance 24h</Title>
           <View style={styles.performanceContainer}>
             <View style={styles.performanceItem}>
               <Text style={styles.performanceLabel}>Requêtes totales</Text>
@@ -128,9 +129,9 @@ export default function Empire() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>🔔 Notifications Configurées</Title>
+          <Title style={styles.cardTitle}>🔔 Notifications Configurées</Title>
           <View style={styles.notification}>
             <Text style={styles.notifTitle}>✅ Erreur BDD critique</Text>
             <Paragraph>Email + SMS immédiat</Paragraph>
@@ -149,9 +150,9 @@ export default function Empire() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>📅 Tâches à venir</Title>
+          <Title style={styles.cardTitle}>📅 Tâches à venir</Title>
           <View style={styles.task}>
             <Text style={styles.taskTitle}>🔧 Maintenance serveur Calytia</Text>
             <Paragraph>Prévu : Samedi 2h00</Paragraph>
@@ -169,77 +170,83 @@ export default function Empire() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 16,
+    backgroundColor: colors.almostBlack,
+    padding: spacing.md,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
+    paddingTop: spacing.sm,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: colors.gold,
   },
   card: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
+    backgroundColor: colors.darkGray,
+    borderWidth: 1,
+    borderColor: colors.gold,
   },
   alert: {
-    padding: 12,
+    padding: spacing.sm,
     borderRadius: 8,
-    marginVertical: 8,
+    marginVertical: spacing.sm,
+    backgroundColor: colors.mediumGray,
   },
   criticalAlert: {
-    backgroundColor: '#ffebee',
     borderLeftWidth: 4,
-    borderLeftColor: '#f44336',
+    borderLeftColor: colors.error,
   },
   warningAlert: {
-    backgroundColor: '#fff8e1',
     borderLeftWidth: 4,
-    borderLeftColor: '#ffc107',
+    borderLeftColor: colors.warning,
   },
   alertHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   alertIcon: {
     fontSize: 24,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   alertTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: colors.white,
   },
   alertTime: {
     fontSize: 12,
-    color: '#666',
+    color: colors.lightGray,
     fontStyle: 'italic',
     marginTop: 4,
   },
   alertButton: {
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   project: {
-    marginVertical: 12,
-    paddingBottom: 12,
+    marginVertical: spacing.sm,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.mediumGray,
   },
   projectHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   projectName: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: colors.white,
   },
   statusOk: {
-    color: '#4CAF50',
+    color: colors.success,
   },
   statusWarning: {
-    color: '#FF9800',
+    color: colors.warning,
   },
   projectStats: {
     flexDirection: 'row',
@@ -251,53 +258,60 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#6200EE',
+    color: colors.gold,
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
+    color: colors.lightGray,
     marginTop: 4,
   },
   performanceContainer: {
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   performanceItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.mediumGray,
   },
   performanceLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.lightGray,
   },
   performanceValue: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: colors.white,
   },
   errorValue: {
-    color: '#f44336',
+    color: colors.error,
   },
   notification: {
-    marginVertical: 8,
-    paddingLeft: 8,
+    marginVertical: spacing.sm,
+    paddingLeft: spacing.sm,
   },
   notifTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 2,
+    color: colors.white,
   },
   addButton: {
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   task: {
-    marginVertical: 8,
-    paddingLeft: 8,
+    marginVertical: spacing.sm,
+    paddingLeft: spacing.sm,
   },
   taskTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 2,
+    color: colors.white,
+  },
+  cardTitle: {
+    color: colors.gold,
+    fontSize: 18,
   },
 });

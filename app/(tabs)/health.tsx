@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Card, Title, Paragraph, Button, ProgressBar } from 'react-native-paper';
+import { colors, spacing } from '@/constants/theme';
 
 export default function Health() {
   return (
@@ -9,9 +10,9 @@ export default function Health() {
         <Paragraph>Objectif : -25kg avec programmes adaptés</Paragraph>
       </View>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>📊 Progression Poids</Title>
+          <Title style={styles.cardTitle}>📊 Progression Poids</Title>
           <Text style={styles.weightCurrent}>Actuel : 97.8 kg</Text>
           <Text style={styles.weightTarget}>Objectif : 75 kg</Text>
           <ProgressBar progress={0.128} color="#4CAF50" style={styles.progressBar} />
@@ -19,9 +20,9 @@ export default function Health() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>🏃 Programme du Jour</Title>
+          <Title style={styles.cardTitle}>🏃 Programme du Jour</Title>
           <Paragraph style={styles.programTitle}>Session Cardio Léger - 15 min</Paragraph>
           
           <View style={styles.exerciseList}>
@@ -42,9 +43,9 @@ export default function Health() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>🔥 Calories & Activité</Title>
+          <Title style={styles.cardTitle}>🔥 Calories & Activité</Title>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statValue}>1,850</Text>
@@ -62,9 +63,9 @@ export default function Health() {
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title>📅 Historique Semaine</Title>
+          <Title style={styles.cardTitle}>📅 Historique Semaine</Title>
           <View style={styles.weekHistory}>
             <View style={styles.dayCard}>
               <Text style={styles.day}>Lun</Text>
@@ -105,60 +106,69 @@ export default function Health() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 16,
+    backgroundColor: colors.almostBlack,
+    padding: spacing.md,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
+    paddingTop: spacing.sm,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: colors.gold,
   },
   card: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
+    backgroundColor: colors.darkGray,
+    borderWidth: 1,
+    borderColor: colors.gold,
   },
   weightCurrent: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginTop: 8,
+    marginTop: spacing.sm,
+    color: colors.white,
   },
   weightTarget: {
     fontSize: 16,
-    color: '#666',
-    marginBottom: 12,
+    color: colors.lightGray,
+    marginBottom: spacing.sm,
   },
   progressBar: {
     height: 10,
     borderRadius: 5,
-    marginVertical: 8,
+    marginVertical: spacing.sm,
+    backgroundColor: colors.mediumGray,
   },
   progressText: {
     textAlign: 'center',
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: colors.gold,
     marginTop: 4,
   },
   programTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginVertical: 8,
+    marginVertical: spacing.sm,
+    color: colors.white,
   },
   exerciseList: {
-    marginVertical: 12,
+    marginVertical: spacing.sm,
   },
   exercise: {
     fontSize: 14,
     marginVertical: 4,
-    paddingLeft: 8,
+    paddingLeft: spacing.sm,
+    color: colors.lightGray,
   },
   button: {
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   stat: {
     alignItems: 'center',
@@ -166,28 +176,29 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#6200EE',
+    color: colors.gold,
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
+    color: colors.lightGray,
     marginTop: 4,
   },
   weekHistory: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   dayCard: {
     alignItems: 'center',
-    padding: 8,
-    backgroundColor: '#fff',
+    padding: spacing.sm,
+    backgroundColor: colors.mediumGray,
     borderRadius: 8,
     minWidth: 40,
   },
   day: {
     fontSize: 12,
     fontWeight: 'bold',
+    color: colors.white,
   },
   dayStatus: {
     fontSize: 20,
@@ -195,8 +206,13 @@ const styles = StyleSheet.create({
   },
   streak: {
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: spacing.sm,
     fontSize: 16,
     fontWeight: 'bold',
+    color: colors.gold,
+  },
+  cardTitle: {
+    color: colors.gold,
+    fontSize: 18,
   },
 });
