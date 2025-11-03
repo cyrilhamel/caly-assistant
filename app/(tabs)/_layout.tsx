@@ -32,6 +32,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="agenda"
+        options={{
+          title: 'Agenda',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="calendar-clock" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="kanban"
         options={{
           title: 'Planification',
@@ -64,6 +73,15 @@ export default function TabLayout() {
           title: 'Empire',
           tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="domain" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Paramètres',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="cog" size={24} color={color} />
           ),
         }}
       />

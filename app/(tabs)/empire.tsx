@@ -1,42 +1,168 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Card, Title, Paragraph, Button, Chip } from 'react-native-paper';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Card, Title, Paragraph, Button, Chip, FAB, Portal, Dialog, TextInput } from 'react-native-paper';
 import { colors, spacing } from '@/constants/theme';
+import { useEmpire } from '@/contexts/EmpireContext';
+import { useState } from 'react';
+import { DatePickerModal, TimePickerModal } from 'react-native-paper-dates';
+import { fr, registerTranslation } from 'react-native-paper-dates';
+import { useRouter } from 'expo-router';
+
+registerTranslation('fr', fr);
 
 export default function Empire() {
+  const router = useRouter();
+  const { projects, alerts, empireTasks, resolveAlert, dismissAlert, addEmpireTask, updateEmpireTask, deleteEmpireTask, startMonitoring, stopMonitoring, isMonitoringActive } = useEmpire();
+  
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    date: new Date(),
+    time: '14:00',
+    duration: 60,
+  });
+  
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+
+  const formatTimeAgo = (date: Date) => {
+    const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (minutes < 60) return `Il y a ${minutes} minutes`;
+    const hours = Math.floor(minutes / 60);
+    return `Il y a ${hours} heure${hours > 1 ? 's' : ''}`;
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('fr-FR', { 
+      weekday: 'long',
+      day: 'numeric', 
+      month: 'long' 
+    });
+  };
+
+  const openAddDialog = () => {
+    setEditingTask(null);
+    setTaskForm({
+      title: '',
+      description: '',
+      date: new Date(),
+      time: '14:00',
+      duration: 60,
+    });
+    setDialogVisible(true);
+  };
+
+  const openEditDialog = (taskId: string) => {
+    const task = empireTasks.find(t => t.id === taskId);
+    if (task) {
+      setEditingTask(taskId);
+      setTaskForm({
+        title: task.title,
+        description: task.description,
+        date: task.date,
+        time: task.time,
+        duration: task.duration || 60,
+      });
+      setDialogVisible(true);
+    }
+  };
+
+  const handleSaveTask = () => {
+    if (!taskForm.title.trim()) {
+      return;
+    }
+
+    if (editingTask) {
+      updateEmpireTask(editingTask, taskForm);
+    } else {
+      addEmpireTask(taskForm);
+    }
+    
+    setDialogVisible(false);
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    const task = empireTasks.find(t => t.id === taskId);
+    Alert.alert(
+      'Supprimer la tâche',
+      `Voulez-vous vraiment supprimer "${task?.title}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Supprimer', style: 'destructive', onPress: () => deleteEmpireTask(taskId) },
+      ]
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Title style={styles.title}>💼 Empire Digital</Title>
         <Paragraph>Monitoring clients & projets</Paragraph>
+        
+        <View style={styles.monitoringControls}>
+          <Button
+            mode={isMonitoringActive ? 'contained' : 'outlined'}
+            icon={isMonitoringActive ? 'pause' : 'play'}
+            onPress={isMonitoringActive ? stopMonitoring : startMonitoring}
+            buttonColor={isMonitoringActive ? colors.success : colors.gold}
+            textColor={isMonitoringActive ? colors.white : colors.gold}
+            style={styles.monitoringButton}
+          >
+            {isMonitoringActive ? 'Monitoring Actif' : 'Démarrer Monitoring'}
+          </Button>
+          <Button
+            mode="text"
+            icon="cog"
+            onPress={() => router.push('/settings')}
+            textColor={colors.gold}
+            compact
+          >
+            Config
+          </Button>
+          {isMonitoringActive && (
+            <Chip icon="check-circle" selectedColor={colors.success} style={styles.statusChip}>
+              En ligne
+            </Chip>
+          )}
+        </View>
       </View>
 
       <Card style={styles.card} mode="contained">
         <Card.Content>
           <Title style={styles.cardTitle}>🚨 Alertes en Temps Réel</Title>
           
-          <View style={[styles.alert, styles.criticalAlert]}>
-            <View style={styles.alertHeader}>
-              <Text style={styles.alertIcon}>🔴</Text>
-              <Text style={styles.alertTitle}>Calytia - BDD Critique</Text>
-            </View>
-            <Paragraph>3 erreurs de connexion détectées</Paragraph>
-            <Paragraph style={styles.alertTime}>Il y a 15 minutes</Paragraph>
-            <Button mode="contained" buttonColor="#f44336" style={styles.alertButton}>
-              Vérifier maintenant
-            </Button>
-          </View>
-
-          <View style={[styles.alert, styles.warningAlert]}>
-            <View style={styles.alertHeader}>
-              <Text style={styles.alertIcon}>🟡</Text>
-              <Text style={styles.alertTitle}>Client #2 - Performance</Text>
-            </View>
-            <Paragraph>Temps de réponse élevé (2.3s)</Paragraph>
-            <Paragraph style={styles.alertTime}>Il y a 1 heure</Paragraph>
-            <Button mode="outlined" style={styles.alertButton}>
-              Analyser
-            </Button>
-          </View>
+          {alerts.length === 0 ? (
+            <Paragraph style={styles.cardText}>✅ Aucune alerte - Tout fonctionne parfaitement !</Paragraph>
+          ) : (
+            alerts.map(alert => (
+              <View key={alert.id} style={[styles.alert, alert.type === 'critical' ? styles.criticalAlert : styles.warningAlert]}>
+                <View style={styles.alertHeader}>
+                  <Text style={styles.alertIcon}>{alert.type === 'critical' ? '�' : '�🟡'}</Text>
+                  <Text style={styles.alertTitle}>{alert.title}</Text>
+                </View>
+                <Paragraph style={styles.cardText}>{alert.description}</Paragraph>
+                <Paragraph style={styles.alertTime}>{formatTimeAgo(alert.timestamp)}</Paragraph>
+                <View style={styles.alertActions}>
+                  <Button 
+                    mode="contained" 
+                    buttonColor={alert.type === 'critical' ? colors.error : colors.warning}
+                    style={styles.alertButton}
+                    onPress={() => resolveAlert(alert.id)}
+                  >
+                    Résoudre
+                  </Button>
+                  <Button 
+                    mode="outlined" 
+                    style={styles.alertButton}
+                    onPress={() => dismissAlert(alert.id)}
+                  >
+                    Ignorer
+                  </Button>
+                </View>
+              </View>
+            ))
+          )}
         </Card.Content>
       </Card>
 
@@ -44,68 +170,35 @@ export default function Empire() {
         <Card.Content>
           <Title style={styles.cardTitle}>📊 Vue d'ensemble Projets</Title>
           
-          <View style={styles.project}>
-            <View style={styles.projectHeader}>
-              <Text style={styles.projectName}>🏢 Calytia</Text>
-              <Chip icon="check-circle" textStyle={styles.statusOk}>Opérationnel</Chip>
-            </View>
-            <View style={styles.projectStats}>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>99.2%</Text>
-                <Text style={styles.statLabel}>Uptime</Text>
+          {projects.map(project => (
+            <View key={project.id} style={styles.project}>
+              <View style={styles.projectHeader}>
+                <Text style={styles.projectName}>{project.name}</Text>
+                <Chip 
+                  icon={project.status === 'operational' ? 'check-circle' : 'alert'} 
+                  textStyle={project.status === 'operational' ? styles.statusOk : styles.statusWarning}
+                >
+                  {project.status === 'operational' ? 'Opérationnel' : 'Attention'}
+                </Chip>
               </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>1.2s</Text>
-                <Text style={styles.statLabel}>Réponse</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>3</Text>
-                <Text style={styles.statLabel}>Alertes</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.project}>
-            <View style={styles.projectHeader}>
-              <Text style={styles.projectName}>🌐 Client #2</Text>
-              <Chip icon="alert" textStyle={styles.statusWarning}>Attention</Chip>
-            </View>
-            <View style={styles.projectStats}>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>98.5%</Text>
-                <Text style={styles.statLabel}>Uptime</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>2.3s</Text>
-                <Text style={styles.statLabel}>Réponse</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>1</Text>
-                <Text style={styles.statLabel}>Alertes</Text>
+              <View style={styles.projectStats}>
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{project.uptime}%</Text>
+                  <Text style={styles.statLabel}>Uptime</Text>
+                </View>
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{project.responseTime}s</Text>
+                  <Text style={styles.statLabel}>Réponse</Text>
+                </View>
+                <View style={styles.stat}>
+                  <Text style={[styles.statValue, project.alerts > 0 && { color: colors.error }]}>
+                    {project.alerts}
+                  </Text>
+                  <Text style={styles.statLabel}>Alertes</Text>
+                </View>
               </View>
             </View>
-          </View>
-
-          <View style={styles.project}>
-            <View style={styles.projectHeader}>
-              <Text style={styles.projectName}>💻 Client #3</Text>
-              <Chip icon="check-circle" textStyle={styles.statusOk}>Opérationnel</Chip>
-            </View>
-            <View style={styles.projectStats}>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>100%</Text>
-                <Text style={styles.statLabel}>Uptime</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>0.8s</Text>
-                <Text style={styles.statLabel}>Réponse</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>0</Text>
-                <Text style={styles.statLabel}>Alertes</Text>
-              </View>
-            </View>
-          </View>
+          ))}
         </Card.Content>
       </Card>
 
@@ -153,16 +246,157 @@ export default function Empire() {
       <Card style={styles.card} mode="contained">
         <Card.Content>
           <Title style={styles.cardTitle}>📅 Tâches à venir</Title>
-          <View style={styles.task}>
-            <Text style={styles.taskTitle}>🔧 Maintenance serveur Calytia</Text>
-            <Paragraph>Prévu : Samedi 2h00</Paragraph>
-          </View>
-          <View style={styles.task}>
-            <Text style={styles.taskTitle}>📞 Call client #2</Text>
-            <Paragraph>Vendredi 14h00 - Revue mensuelle</Paragraph>
-          </View>
+          
+          {empireTasks.length === 0 ? (
+            <Paragraph style={styles.cardText}>Aucune tâche planifiée</Paragraph>
+          ) : (
+            empireTasks.map(task => (
+              <View key={task.id} style={styles.empireTask}>
+                <View style={styles.empireTaskHeader}>
+                  <View style={styles.empireTaskTitleContainer}>
+                    <Text style={styles.taskTitle}>{task.title}</Text>
+                  </View>
+                  <Button
+                    mode="text"
+                    textColor={colors.error}
+                    onPress={() => handleDeleteTask(task.id)}
+                    compact
+                  >
+                    Supprimer
+                  </Button>
+                </View>
+                <Paragraph style={styles.cardText}>
+                  {formatDate(task.date)} - {task.time}
+                  {task.duration && ` (${task.duration} min)`}
+                </Paragraph>
+                {task.description && (
+                  <Paragraph style={styles.taskDescription}>{task.description}</Paragraph>
+                )}
+                <Button
+                  mode="outlined"
+                  icon="pencil"
+                  style={styles.editButton}
+                  onPress={() => openEditDialog(task.id)}
+                  compact
+                >
+                  Modifier
+                </Button>
+              </View>
+            ))
+          )}
+          
+          <Button 
+            mode="contained" 
+            icon="plus" 
+            style={styles.addTaskButton}
+            buttonColor={colors.gold}
+            textColor={colors.almostBlack}
+            onPress={openAddDialog}
+          >
+            Ajouter une tâche
+          </Button>
         </Card.Content>
       </Card>
+
+      <Portal>
+        <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)} style={styles.dialog}>
+          <Dialog.Title style={styles.dialogTitle}>
+            {editingTask ? 'Modifier la tâche' : 'Nouvelle tâche'}
+          </Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Titre"
+              value={taskForm.title}
+              onChangeText={(text) => setTaskForm({ ...taskForm, title: text })}
+              style={styles.input}
+              mode="outlined"
+              outlineColor={colors.gold}
+              activeOutlineColor={colors.gold}
+              textColor={colors.white}
+            />
+            
+            <TextInput
+              label="Description"
+              value={taskForm.description}
+              onChangeText={(text) => setTaskForm({ ...taskForm, description: text })}
+              style={styles.input}
+              mode="outlined"
+              outlineColor={colors.gold}
+              activeOutlineColor={colors.gold}
+              textColor={colors.white}
+              multiline
+              numberOfLines={3}
+            />
+
+            <Button
+              mode="outlined"
+              onPress={() => setDatePickerVisible(true)}
+              style={styles.dateButton}
+              icon="calendar"
+            >
+              {formatDate(taskForm.date)}
+            </Button>
+
+            <Button
+              mode="outlined"
+              onPress={() => setTimePickerVisible(true)}
+              style={styles.dateButton}
+              icon="clock"
+            >
+              {taskForm.time}
+            </Button>
+
+            <TextInput
+              label="Durée (minutes)"
+              value={taskForm.duration.toString()}
+              onChangeText={(text) => setTaskForm({ ...taskForm, duration: parseInt(text) || 0 })}
+              style={styles.input}
+              mode="outlined"
+              outlineColor={colors.gold}
+              activeOutlineColor={colors.gold}
+              textColor={colors.white}
+              keyboardType="numeric"
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDialogVisible(false)} textColor={colors.lightGray}>
+              Annuler
+            </Button>
+            <Button onPress={handleSaveTask} textColor={colors.gold}>
+              {editingTask ? 'Modifier' : 'Ajouter'}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <DatePickerModal
+          locale="fr"
+          mode="single"
+          visible={datePickerVisible}
+          onDismiss={() => setDatePickerVisible(false)}
+          date={taskForm.date}
+          onConfirm={({ date }) => {
+            setDatePickerVisible(false);
+            if (date) {
+              setTaskForm({ ...taskForm, date });
+            }
+          }}
+        />
+
+        <TimePickerModal
+          locale="fr"
+          visible={timePickerVisible}
+          onDismiss={() => setTimePickerVisible(false)}
+          onConfirm={({ hours, minutes }) => {
+            setTimePickerVisible(false);
+            setTaskForm({ 
+              ...taskForm, 
+              time: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}` 
+            });
+          }}
+          hours={parseInt(taskForm.time.split(':')[0])}
+          minutes={parseInt(taskForm.time.split(':')[1])}
+        />
+      </Portal>
     </ScrollView>
   );
 }
@@ -176,6 +410,18 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.lg,
     paddingTop: spacing.sm,
+  },
+  monitoringControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  monitoringButton: {
+    flex: 1,
+  },
+  statusChip: {
+    backgroundColor: colors.mediumGray,
   },
   title: {
     fontSize: 28,
@@ -223,6 +469,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   alertButton: {
+    marginTop: spacing.sm,
+    marginRight: spacing.sm,
+  },
+  alertActions: {
+    flexDirection: 'row',
     marginTop: spacing.sm,
   },
   project: {
@@ -310,8 +561,53 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     color: colors.white,
   },
+  empireTask: {
+    marginVertical: spacing.sm,
+    padding: spacing.sm,
+    backgroundColor: colors.mediumGray,
+    borderRadius: 8,
+  },
+  empireTaskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    gap: spacing.sm,
+  },
+  empireTaskTitleContainer: {
+    flex: 1,
+  },
+  taskDescription: {
+    color: colors.lightGray,
+    fontSize: 13,
+    marginTop: spacing.xs,
+    fontStyle: 'italic',
+  },
+  editButton: {
+    marginTop: spacing.sm,
+  },
+  addTaskButton: {
+    marginTop: spacing.md,
+  },
+  dialog: {
+    backgroundColor: colors.darkGray,
+  },
+  dialogTitle: {
+    color: colors.gold,
+  },
+  input: {
+    marginBottom: spacing.sm,
+    backgroundColor: colors.mediumGray,
+  },
+  dateButton: {
+    marginBottom: spacing.sm,
+    borderColor: colors.gold,
+  },
   cardTitle: {
     color: colors.gold,
     fontSize: 18,
+  },
+  cardText: {
+    color: colors.lightGray,
   },
 });
