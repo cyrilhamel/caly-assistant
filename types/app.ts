@@ -25,6 +25,8 @@ export interface HealthData {
   workoutProgram: WorkoutProgram;
   currentWeek: number;
   lastUpdatedDate: string; // Format YYYY-MM-DD
+  sleepHours: number; // Heures de sommeil de la nuit dernière
+  lastSleepUpdate: string; // Date de la dernière saisie (YYYY-MM-DD)
 }
 
 export interface WeightEntry {

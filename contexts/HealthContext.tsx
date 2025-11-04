@@ -12,6 +12,9 @@ interface HealthContextType {
   getTodayProgram: () => WorkoutProgram;
   completeExercise: (exerciseIndex: number) => void;
   updateSteps: (steps: number) => void;
+  updateSleepHours: (hours: number) => void;
+  needsSleepInput: () => boolean;
+  calculateEnergyScore: () => number;
 }
 
 const HealthContext = createContext<HealthContextType | undefined>(undefined);
@@ -398,10 +401,78 @@ const initialHealth: HealthData = {
   workoutProgram: workoutPrograms.jeudi_debutant, // Jeudi 30 octobre
   currentWeek: 1,
   lastUpdatedDate: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD
+  sleepHours: 7, // Valeur par défaut
+  lastSleepUpdate: '', // Pas encore saisi aujourd'hui
 };
 
 export function HealthProvider({ children }: { children: ReactNode }) {
   const [health, setHealth] = useState<HealthData>(initialHealth);
+
+  // Fonction helper pour calculer le score (définie avant l'useEffect)
+  const calculateEnergyScoreHelper = (
+    healthData: HealthData,
+    urgentTasksCount: number = 0,
+    familyAppointmentsToday: number = 0,
+    criticalAlertsCount: number = 0
+  ): number => {
+    let score = 50; // Base
+
+    // Facteur sommeil (0-25 points)
+    if (healthData.sleepHours >= 8) {
+      score += 25;
+    } else if (healthData.sleepHours >= 7) {
+      score += 20;
+    } else if (healthData.sleepHours >= 6) {
+      score += 10;
+    } else if (healthData.sleepHours < 5) {
+      score -= 10;
+    }
+
+    // Facteur activité physique (0-20 points)
+    const workoutCompleted = healthData.workoutProgram.exercises.every(ex => ex.completed);
+    if (workoutCompleted) {
+      score += 20;
+    } else {
+      const completedCount = healthData.workoutProgram.exercises.filter(ex => ex.completed).length;
+      const totalCount = healthData.workoutProgram.exercises.length;
+      score += Math.floor((completedCount / totalCount) * 20);
+    }
+
+    // Facteur pas quotidiens (0-15 points)
+    if (healthData.steps >= 10000) {
+      score += 15;
+    } else if (healthData.steps >= 7500) {
+      score += 10;
+    } else if (healthData.steps >= 5000) {
+      score += 5;
+    } else if (healthData.steps < 3000) {
+      score -= 5;
+    }
+
+    // Facteur série active (0-10 points)
+    if (healthData.streak >= 7) {
+      score += 10;
+    } else if (healthData.streak >= 4) {
+      score += 7;
+    } else if (healthData.streak >= 2) {
+      score += 4;
+    }
+
+    // Facteurs négatifs externes
+    score -= Math.min(15, familyAppointmentsToday * 3);
+    score -= Math.min(10, urgentTasksCount * 2);
+    score -= Math.min(10, criticalAlertsCount * 5);
+
+    return Math.max(0, Math.min(100, Math.round(score)));
+  };
+
+  // Recalculer automatiquement le score d'énergie quand certaines valeurs changent
+  useEffect(() => {
+    const newScore = calculateEnergyScoreHelper(health);
+    if (newScore !== health.energyScore) {
+      setHealth(prev => ({ ...prev, energyScore: newScore }));
+    }
+  }, [health.sleepHours, health.steps, health.streak, JSON.stringify(health.workoutProgram.exercises.map(e => e.completed))]);
 
   // Fonction pour obtenir la date actuelle au format YYYY-MM-DD
   const getCurrentDate = () => {
@@ -583,6 +654,31 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateSleepHours = (hours: number) => {
+    const today = new Date().toISOString().split('T')[0];
+    const updatedHealth = {
+      ...health,
+      sleepHours: hours,
+      lastSleepUpdate: today,
+    };
+    setHealth(updatedHealth);
+    
+    // Recalculer automatiquement le score d'énergie
+    const newScore = calculateEnergyScoreHelper(updatedHealth);
+    setTimeout(() => {
+      setHealth(prev => ({ ...prev, energyScore: newScore }));
+    }, 100);
+  };
+
+  const needsSleepInput = (): boolean => {
+    const today = new Date().toISOString().split('T')[0];
+    return health.lastSleepUpdate !== today;
+  };
+
+  const calculateEnergyScore = (): number => {
+    return calculateEnergyScoreHelper(health);
+  };
+
   return (
     <HealthContext.Provider value={{ 
       health, 
@@ -595,6 +691,9 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       getTodayProgram,
       completeExercise,
       updateSteps,
+      updateSleepHours,
+      needsSleepInput,
+      calculateEnergyScore,
     }}>
       {children}
     </HealthContext.Provider>

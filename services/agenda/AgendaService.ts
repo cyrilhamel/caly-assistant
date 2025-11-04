@@ -135,7 +135,9 @@ class AgendaService {
     existingEvents: AgendaEvent[],
     startDate: Date = new Date()
   ): { date: Date; time: string } | null {
-    const taskDuration = task.duration + (task.duration > 60 ? this.config.breakDuration : 0);
+    // Utiliser actualDuration si elle existe (tâche prolongée), sinon duration
+    const effectiveDuration = task.actualDuration || task.duration;
+    const taskDuration = effectiveDuration + (effectiveDuration > 60 ? this.config.breakDuration : 0);
 
     // Chercher dans les X prochains jours
     for (let i = 0; i < this.config.lookAheadDays; i++) {
@@ -172,10 +174,15 @@ class AgendaService {
     startDate: Date = new Date()
   ): AgendaEvent[] {
     // Séparer les événements fixes et les tâches
-    const fixedEvents = events.filter((e) => e.isFixed || e.status === 'validated');
-    const tasksToSchedule = events.filter(
-      (e) => !e.isFixed && e.status !== 'validated' && e.status !== 'completed'
+    // Les événements fixed, validated et in-progress restent en place
+    const fixedEvents = events.filter((e) => 
+      e.isFixed || e.status === 'validated' || e.status === 'in-progress'
     );
+    const tasksToSchedule = events.filter(
+      (e) => !e.isFixed && e.status !== 'validated' && e.status !== 'completed' && e.status !== 'in-progress'
+    );
+
+    console.log(`[AgendaService] Auto-scheduling ${tasksToSchedule.length} tasks (${fixedEvents.length} fixed)`);
 
     // Trier les tâches par priorité (urgent > normal > low)
     const priorityOrder: Record<Priority, number> = {
@@ -203,10 +210,12 @@ class AgendaService {
           ...task,
           date: slot.date,
           time: slot.time,
-          status: 'scheduled',
+          // Préserver le status in-progress si la tâche est en cours, sinon scheduled
+          status: task.status === 'in-progress' ? 'in-progress' : 'scheduled',
           updatedAt: new Date(),
         };
         scheduledEvents.push(scheduledTask);
+        console.log(`[AgendaService] Scheduled: ${task.title} at ${slot.time} on ${slot.date.toLocaleDateString()}`);
       } else {
         // Impossible de placer la tâche
         console.warn(`Impossible de placer la tâche: ${task.title}`);
@@ -226,15 +235,19 @@ class AgendaService {
   ): AgendaEvent[] {
     const now = new Date();
     
-    // Si une tâche urgente vient d'être ajoutée, démarrer la réorganisation à partir d'aujourd'hui
+    // Déterminer à partir de quand réorganiser
     let reorganizeFrom = now;
     
     if (changedEventId) {
       const changedEvent = events.find((e) => e.id === changedEventId);
-      if (changedEvent && changedEvent.priority === 'urgent') {
-        reorganizeFrom = now; // Réorganiser immédiatement
-      } else if (changedEvent) {
-        reorganizeFrom = new Date(changedEvent.date);
+      if (changedEvent) {
+        // Tâches urgentes ou postponed : réorganiser à partir de maintenant
+        if (changedEvent.priority === 'urgent' || changedEvent.status === 'postponed') {
+          reorganizeFrom = now;
+        } else {
+          // Sinon, réorganiser à partir de la date de l'événement modifié
+          reorganizeFrom = new Date(changedEvent.date);
+        }
       }
     }
 
@@ -249,16 +262,24 @@ class AgendaService {
       );
     });
 
-    // Réorganiser le reste
-    const eventsToReorganize = events.filter((e) => {
-      const eventDate = new Date(e.date);
-      return (
-        eventDate >= reorganizeFrom &&
-        e.status !== 'validated' &&
-        e.status !== 'completed' &&
-        !e.isFixed
-      );
-    });
+    // Réorganiser le reste (y compris les tâches postponed qui passent à 'scheduled')
+    const eventsToReorganize = events
+      .filter((e) => {
+        const eventDate = new Date(e.date);
+        return (
+          eventDate >= reorganizeFrom &&
+          e.status !== 'validated' &&
+          e.status !== 'completed' &&
+          !e.isFixed
+        );
+      })
+      .map((e) => {
+        // Les tâches postponed redeviennent scheduled lors de la réorganisation
+        if (e.status === 'postponed') {
+          return { ...e, status: 'scheduled' as const };
+        }
+        return e;
+      });
 
     return this.autoScheduleTasks(
       [...pastAndValidatedEvents, ...eventsToReorganize],
@@ -313,8 +334,8 @@ class AgendaService {
     
     if (!taskToPostpone) return allEvents;
 
-    // Marquer comme reportée
-    const eventsWithoutTask = allEvents.map((event) => {
+    // Marquer comme reportée et retirer de son créneau actuel
+    const updatedEvents = allEvents.map((event) => {
       if (event.id === taskId) {
         return {
           ...event,
@@ -325,11 +346,8 @@ class AgendaService {
       return event;
     });
 
-    // Chercher à partir du lendemain
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return this.reorganizeSchedule(eventsWithoutTask);
+    // Réorganiser tout le planning à partir de maintenant
+    return this.reorganizeSchedule(updatedEvents, taskId);
   }
 
   /**

@@ -5,12 +5,48 @@ import { useHealth } from '@/contexts/HealthContext';
 import { useTasks } from '@/contexts/TaskContext';
 import { useFamily } from '@/contexts/FamilyContext';
 import { useEmpire } from '@/contexts/EmpireContext';
+import { useAgenda } from '@/contexts/AgendaContext';
+import { SleepDialog } from '@/components/common/SleepDialog';
+import { useState, useEffect } from 'react';
 
 export default function Dashboard() {
-  const { health } = useHealth();
+  const { health, updateSleepHours, needsSleepInput, calculateEnergyScore } = useHealth();
   const { tasks } = useTasks();
   const { appointments } = useFamily();
   const { alerts } = useEmpire();
+  const { events } = useAgenda();
+  
+  const [showSleepDialog, setShowSleepDialog] = useState(false);
+
+  // Vérifier au montage si on doit demander le sommeil
+  useEffect(() => {
+    if (needsSleepInput()) {
+      // Attendre 1 seconde pour laisser l'app se charger
+      setTimeout(() => setShowSleepDialog(true), 1000);
+    }
+  }, []);
+
+  // Recalculer le score d'énergie quand les données changent
+  useEffect(() => {
+    // Compter les tâches urgentes dans l'agenda aujourd'hui
+    const today = new Date();
+    const urgentTasksToday = events.filter(e => {
+      const eventDate = new Date(e.date);
+      return (
+        eventDate.toDateString() === today.toDateString() &&
+        e.priority === 'urgent' &&
+        e.status !== 'completed'
+      );
+    }).length;
+
+    // Le score sera recalculé dans le contexte avec les nouvelles données
+    // (déjà fait automatiquement via updateSleepHours)
+  }, [events, appointments, alerts, health.steps, health.workoutProgram]);
+
+  const handleSleepConfirm = (hours: number) => {
+    updateSleepHours(hours);
+    setShowSleepDialog(false);
+  };
 
   // Calculer la progression du poids depuis le premier historique
   const startWeight = health.weightHistory.length > 0 ? health.weightHistory[0].weight : health.currentWeight;
@@ -42,10 +78,16 @@ export default function Dashboard() {
       <Card style={styles.card} mode="contained">
         <Card.Content>
           <Title style={styles.cardTitle}>⚡ Score Énergie</Title>
-          <Text style={styles.energyScore}>{health.energyScore}% {health.energyScore >= 70 ? '🟢' : health.energyScore >= 50 ? '' : '🔴'}</Text>
+          <Text style={styles.energyScore}>{health.energyScore}% {health.energyScore >= 70 ? '🟢' : health.energyScore >= 50 ? '🟡' : '🔴'}</Text>
           <Paragraph style={styles.cardText}>
             {health.energyScore >= 70 ? 'Excellent - Continuez !' : health.energyScore >= 50 ? 'Modérée - Pensez à faire une pause' : 'Faible - Repos recommandé'}
           </Paragraph>
+          <Paragraph style={styles.sleepInfo}>
+            💤 Sommeil : {health.sleepHours}h
+          </Paragraph>
+          <TouchableOpacity onPress={() => setShowSleepDialog(true)}>
+            <Text style={styles.updateLink}>Modifier le sommeil</Text>
+          </TouchableOpacity>
         </Card.Content>
       </Card>
 
@@ -97,7 +139,7 @@ export default function Dashboard() {
 
       <Card style={styles.card} mode="contained">
         <Card.Content>
-          <Title style={styles.cardTitle}> Empire Digital</Title>
+          <Title style={styles.cardTitle}>🏰 Empire Digital</Title>
           <Text style={styles.alerts}>
             {criticalAlerts > 0 ? `🔴 ${criticalAlerts} alertes critiques` : alerts.length > 0 ? `🟡 ${alerts.length} alertes` : '🟢 Tout va bien'}
           </Text>
@@ -106,6 +148,12 @@ export default function Dashboard() {
           </Paragraph>
         </Card.Content>
       </Card>
+
+      <SleepDialog
+        visible={showSleepDialog}
+        onDismiss={() => setShowSleepDialog(false)}
+        onConfirm={handleSleepConfirm}
+      />
     </ScrollView>
   );
 }
@@ -150,6 +198,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.white,
     marginVertical: spacing.sm,
+  },
+  sleepInfo: {
+    color: colors.mediumGray,
+    fontSize: 14,
+    marginTop: 8,
+  },
+  updateLink: {
+    color: colors.gold,
+    fontSize: 14,
+    marginTop: 8,
+    textDecorationLine: 'underline',
   },
   weightProgress: {
     fontSize: 28,

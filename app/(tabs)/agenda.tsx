@@ -73,6 +73,7 @@ export default function AgendaScreen() {
   const handleValidateTask = () => {
     if (selectedEvent) {
       validateTask(selectedEvent.id);
+      setSelectedEvent(null); // Reset pour forcer le refresh
       setShowEventDialog(false);
     }
   };
@@ -80,6 +81,7 @@ export default function AgendaScreen() {
   const handlePostponeTask = () => {
     if (selectedEvent) {
       postponeTask(selectedEvent.id);
+      setSelectedEvent(null); // Reset pour forcer le refresh
       setShowEventDialog(false);
     }
   };
@@ -88,6 +90,7 @@ export default function AgendaScreen() {
     if (selectedEvent) {
       const minutes = parseInt(additionalMinutes) || 0;
       extendTask(selectedEvent.id, minutes);
+      setSelectedEvent(null); // Reset pour forcer le refresh
       setShowExtendDialog(false);
       setShowEventDialog(false);
     }
@@ -193,6 +196,7 @@ export default function AgendaScreen() {
             events={getCurrentEvents()}
             startDate={selectedDate}
             onEventPress={handleEventPress}
+            onDayPress={handleDayPress}
           />
         )}
         {viewMode === 'month' && (

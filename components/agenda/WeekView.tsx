@@ -8,9 +8,10 @@ interface WeekViewProps {
   events: AgendaEvent[];
   startDate: Date;
   onEventPress: (event: AgendaEvent) => void;
+  onDayPress?: (date: Date) => void;
 }
 
-export function WeekView({ events, startDate, onEventPress }: WeekViewProps) {
+export function WeekView({ events, startDate, onEventPress, onDayPress }: WeekViewProps) {
   // Générer les 7 jours de la semaine
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(startDate);
@@ -60,6 +61,7 @@ export function WeekView({ events, startDate, onEventPress }: WeekViewProps) {
                   isToday && styles.todayHeader
                 ]}
                 elevation={1}
+                onTouchEnd={() => onDayPress?.(date)}
               >
                 <Text style={[styles.dayName, isToday && styles.todayText]}>
                   {dayNames[date.getDay()]}

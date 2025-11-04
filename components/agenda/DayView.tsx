@@ -11,11 +11,10 @@ interface DayViewProps {
 }
 
 export function DayView({ events, date, onEventPress }: DayViewProps) {
-  // Horaires de travail (9h-16h30 avec pause déjeuner)
-  const hours = [
-    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'
-  ];
+  // Horaires affichés : 6h - 23h (horaires de travail 9h-16h30 pour auto-planification)
+  const startHour = 6;
+  const endHour = 23;
+  const slotHeight = 60; // Hauteur pour 30 minutes
 
   const getEventColor = (event: AgendaEvent) => {
     if (event.isFixed) return colors.gold;
@@ -34,74 +33,86 @@ export function DayView({ events, date, onEventPress }: DayViewProps) {
     return '📋';
   };
 
+  // Calcule la position Y en pixels depuis 9h
+  const getEventPosition = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const totalMinutes = (hours - startHour) * 60 + minutes;
+    return (totalMinutes / 30) * slotHeight;
+  };
+
+  // Calcule la hauteur en pixels basée sur la durée
+  const getEventHeight = (duration: number): number => {
+    return (duration / 30) * slotHeight;
+  };
+
+  // Génère les lignes d'heures
+  const renderTimeGrid = () => {
+    const lines = [];
+    for (let hour = startHour; hour < endHour; hour++) {
+      // Sauter 12h (pause déjeuner)
+      if (hour === 12) continue;
+      
+      lines.push(
+        <View key={`${hour}:00`} style={[styles.timeLine, { top: getEventPosition(`${hour}:00`) }]}>
+          <Text style={styles.timeLabel}>{`${hour.toString().padStart(2, '0')}:00`}</Text>
+        </View>
+      );
+      lines.push(
+        <View key={`${hour}:30`} style={[styles.timeLine, { top: getEventPosition(`${hour}:30`) }]}>
+          <Text style={styles.timeLabelSmall}>{`${hour.toString().padStart(2, '0')}:30`}</Text>
+        </View>
+      );
+    }
+    return lines;
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.timeline}>
-        {hours.map((hour) => {
-          // Trouver les événements pour cette heure
-          const hourEvents = events.filter((event) => {
-            const [eventHour, eventMinute] = event.time.split(':').map(Number);
-            const [currentHour, currentMinute] = hour.split(':').map(Number);
-            
-            const eventMinutes = eventHour * 60 + eventMinute;
-            const currentMinutes = currentHour * 60 + currentMinute;
-            
-            return eventMinutes === currentMinutes;
-          });
-
+        {renderTimeGrid()}
+        
+        {/* Événements en position absolue */}
+        {events.map((event) => {
+          const top = getEventPosition(event.time);
+          const height = getEventHeight(event.actualDuration || event.duration);
+          
           return (
-            <View key={hour} style={styles.timeSlot}>
-              <Text style={styles.timeLabel}>{hour}</Text>
-              <View style={styles.eventContainer}>
-                {hourEvents.length === 0 ? (
-                  <View style={styles.emptySlot} />
-                ) : (
-                  hourEvents.map((event) => (
-                    <Surface
-                      key={event.id}
-                      style={[
-                        styles.eventCard,
-                        { borderLeftColor: getEventColor(event) }
-                      ]}
-                      elevation={2}
-                      onTouchEnd={() => onEventPress(event)}
-                    >
-                      <View style={styles.eventHeader}>
-                        <Text style={styles.eventIcon}>{getEventIcon(event)}</Text>
-                        <Text style={styles.eventTitle} numberOfLines={1}>
-                          {event.title}
-                        </Text>
-                        <Chip
-                          mode="outlined"
-                          compact
-                          style={styles.durationChip}
-                          textStyle={styles.durationText}
-                        >
-                          {event.actualDuration || event.duration}min
-                        </Chip>
-                      </View>
-                      {event.description && (
-                        <Text style={styles.eventDescription} numberOfLines={2}>
-                          {event.description}
-                        </Text>
-                      )}
-                      <View style={styles.eventFooter}>
-                        {event.isFixed && (
-                          <Chip compact mode="flat" style={styles.fixedChip}>
-                            Fixe
-                          </Chip>
-                        )}
-                        {!event.isFixed && event.status === 'scheduled' && (
-                          <Chip compact mode="flat" style={styles.scheduledChip}>
-                            Auto-planifié
-                          </Chip>
-                        )}
-                      </View>
-                    </Surface>
-                  ))
+            <Surface
+              key={event.id}
+              style={[
+                styles.eventCard,
+                {
+                  top,
+                  height: Math.max(height, 50), // Minimum 50px
+                  borderLeftColor: getEventColor(event),
+                }
+              ]}
+              elevation={2}
+              onTouchEnd={() => onEventPress(event)}
+            >
+              <View style={styles.eventHeader}>
+                <Text style={styles.eventIcon}>{getEventIcon(event)}</Text>
+                <Text style={styles.eventTitle} numberOfLines={1}>
+                  {event.title}
+                </Text>
+              </View>
+              {event.description && height > 80 && (
+                <Text style={styles.eventDescription} numberOfLines={2}>
+                  {event.description}
+                </Text>
+              )}
+              <View style={styles.eventFooter}>
+                <Text style={styles.chipText}>
+                  ⏱️ {event.actualDuration || event.duration}min
+                </Text>
+                {event.isFixed && (
+                  <Text style={styles.chipText}>📌 Fixe</Text>
+                )}
+                {!event.isFixed && event.status === 'scheduled' && (
+                  <Text style={styles.chipText}>🤖 Auto</Text>
                 )}
               </View>
-            </View>
+            </Surface>
           );
         })}
       </View>
@@ -116,33 +127,45 @@ const styles = StyleSheet.create({
   },
   timeline: {
     padding: 16,
+    position: 'relative',
+    minHeight: 2040, // Hauteur pour 6h-23h (17 heures × 2 slots × 60px)
+    paddingLeft: 70,
   },
-  timeSlot: {
+  timeLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.lightGray + '30',
     flexDirection: 'row',
-    marginBottom: 8,
-    minHeight: 60,
+    alignItems: 'center',
   },
   timeLabel: {
-    width: 60,
+    position: 'absolute',
+    left: 16,
     fontSize: 14,
     color: colors.mediumGray,
     fontWeight: '500',
+    width: 50,
+    backgroundColor: colors.almostBlack,
   },
-  eventContainer: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  emptySlot: {
-    height: 1,
-    backgroundColor: colors.lightGray,
-    marginTop: 8,
+  timeLabelSmall: {
+    position: 'absolute',
+    left: 16,
+    fontSize: 12,
+    color: colors.lightGray,
+    width: 50,
+    backgroundColor: colors.almostBlack,
   },
   eventCard: {
+    position: 'absolute',
+    left: 70,
+    right: 16,
     padding: 12,
     borderRadius: 8,
     backgroundColor: colors.darkGray,
     borderLeftWidth: 4,
-    marginBottom: 8,
+    justifyContent: 'space-between',
   },
   eventHeader: {
     flexDirection: 'row',
@@ -159,14 +182,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.white,
   },
-  durationChip: {
-    height: 24,
-    backgroundColor: colors.mediumGray,
-  },
-  durationText: {
-    fontSize: 12,
-    color: colors.white,
-  },
   eventDescription: {
     fontSize: 14,
     color: colors.lightGray,
@@ -174,14 +189,14 @@ const styles = StyleSheet.create({
   },
   eventFooter: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  fixedChip: {
-    height: 24,
-    backgroundColor: colors.gold + '20',
-  },
-  scheduledChip: {
-    height: 24,
-    backgroundColor: colors.lightGray + '20',
+  chipText: {
+    fontSize: 11,
+    color: colors.lightGray,
+    fontWeight: '500',
   },
 });
