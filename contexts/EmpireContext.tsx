@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Project, Alert, EmpireTask } from '@/types/app';
+import { Project, Alert, EmpireTask, NotificationRule } from '@/types/app';
 import { monitoringService, notificationService } from '@/services/monitoring';
 import type { MonitoringConfig } from '@/services/monitoring';
 
@@ -7,11 +7,16 @@ interface EmpireContextType {
   projects: Project[];
   alerts: Alert[];
   empireTasks: EmpireTask[];
+  notificationRules: NotificationRule[];
   dismissAlert: (id: string) => void;
   resolveAlert: (id: string) => void;
   addEmpireTask: (task: Omit<EmpireTask, 'id'>) => void;
   updateEmpireTask: (id: string, updates: Partial<Omit<EmpireTask, 'id'>>) => void;
   deleteEmpireTask: (id: string) => void;
+  addNotificationRule: (rule: Omit<NotificationRule, 'id' | 'createdAt'>) => void;
+  updateNotificationRule: (id: string, updates: Partial<Omit<NotificationRule, 'id' | 'createdAt'>>) => void;
+  deleteNotificationRule: (id: string) => void;
+  toggleNotificationRule: (id: string) => void;
   startMonitoring: () => void;
   stopMonitoring: () => void;
   isMonitoringActive: boolean;
@@ -84,10 +89,13 @@ const initialEmpireTasks: EmpireTask[] = [
   },
 ];
 
+const initialNotificationRules: NotificationRule[] = [];
+
 export function EmpireProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
   const [empireTasks, setEmpireTasks] = useState<EmpireTask[]>(initialEmpireTasks);
+  const [notificationRules, setNotificationRules] = useState<NotificationRule[]>(initialNotificationRules);
   const [isMonitoringActive, setIsMonitoringActive] = useState(false);
 
   // Initialiser le service de notifications
@@ -231,16 +239,46 @@ export function EmpireProvider({ children }: { children: ReactNode }) {
     setEmpireTasks(empireTasks.filter(task => task.id !== id));
   };
 
+  const addNotificationRule = (rule: Omit<NotificationRule, 'id' | 'createdAt'>) => {
+    const newRule: NotificationRule = {
+      ...rule,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+    };
+    setNotificationRules([...notificationRules, newRule]);
+  };
+
+  const updateNotificationRule = (id: string, updates: Partial<Omit<NotificationRule, 'id' | 'createdAt'>>) => {
+    setNotificationRules(notificationRules.map(rule => 
+      rule.id === id ? { ...rule, ...updates } : rule
+    ));
+  };
+
+  const deleteNotificationRule = (id: string) => {
+    setNotificationRules(notificationRules.filter(rule => rule.id !== id));
+  };
+
+  const toggleNotificationRule = (id: string) => {
+    setNotificationRules(notificationRules.map(rule => 
+      rule.id === id ? { ...rule, enabled: !rule.enabled } : rule
+    ));
+  };
+
   return (
     <EmpireContext.Provider value={{ 
       projects, 
       alerts, 
       empireTasks,
+      notificationRules,
       dismissAlert, 
       resolveAlert,
       addEmpireTask,
       updateEmpireTask,
       deleteEmpireTask,
+      addNotificationRule,
+      updateNotificationRule,
+      deleteNotificationRule,
+      toggleNotificationRule,
       startMonitoring,
       stopMonitoring,
       isMonitoringActive,

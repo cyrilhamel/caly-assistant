@@ -141,3 +141,16 @@ export interface EmpireTask {
   time: string;
   duration?: number; // durée en minutes
 }
+
+export type NotificationChannel = 'email' | 'sms' | 'push' | 'call';
+
+export interface NotificationRule {
+  id: string;
+  title: string;
+  description: string;
+  triggerType: 'critical' | 'warning' | 'performance' | 'downtime' | 'custom';
+  channels: NotificationChannel[];
+  enabled: boolean;
+  createdAt: Date;
+}
+

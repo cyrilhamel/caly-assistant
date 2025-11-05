@@ -233,7 +233,51 @@ export default function Family() {
     return apt.date.toDateString() === today;
   }).length;
 
-  const weeklyHours = 77; // Calculé à partir des données
+  // Calculer les heures hebdomadaires totales
+  const calculateWeeklyHours = () => {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay()); // Dimanche
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    
+    let totalMinutes = 0;
+    
+    // Heures des rendez-vous cette semaine
+    appointments.forEach(apt => {
+      const aptDate = new Date(apt.date);
+      if (aptDate >= weekStart && aptDate < weekEnd && apt.duration) {
+        totalMinutes += apt.duration;
+      }
+    });
+    
+    // Heures des activités enfants cette semaine
+    activities.forEach(act => {
+      const actDate = new Date(act.date);
+      if (actDate >= weekStart && actDate < weekEnd && act.duration) {
+        totalMinutes += act.duration;
+      }
+    });
+    
+    // Heures des médicaments (estimé : 2min par prise)
+    const dailyMedicationMinutes = medications.reduce((sum, med) => {
+      return sum + (med.schedule.length * 2); // 2 minutes par prise
+    }, 0);
+    totalMinutes += dailyMedicationMinutes * 7; // Semaine complète
+    
+    // Heures des tâches administratives (basé sur durée ou estimé 30min)
+    adminTasks.forEach(task => {
+      if (!task.completed) {
+        totalMinutes += task.duration || 30;
+      }
+    });
+    
+    return (totalMinutes / 60).toFixed(0); // Convertir en heures
+  };
+
+  const weeklyHours = calculateWeeklyHours();
   return (
     <>
     <ScrollView style={styles.container}>

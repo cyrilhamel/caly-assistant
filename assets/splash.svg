@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1284" height="2778" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1284" height="2778" fill="#6200EE"/>
+  <text x="642" y="1500" font-family="Arial, sans-serif" font-size="150" fill="#FFFFFF" text-anchor="middle" font-weight="bold">Caly</text>
+  <text x="642" y="1700" font-family="Arial, sans-serif" font-size="50" fill="#FFFFFF" text-anchor="middle">Assistante de vie intelligente</text>
+  <circle cx="642" cy="1200" r="150" fill="#FFFFFF"/>
+</svg>

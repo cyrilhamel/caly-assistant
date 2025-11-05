@@ -11,7 +11,20 @@ registerTranslation('fr', fr);
 
 export default function Empire() {
   const router = useRouter();
-  const { projects, alerts, empireTasks, resolveAlert, dismissAlert, addEmpireTask, updateEmpireTask, deleteEmpireTask, startMonitoring, stopMonitoring, isMonitoringActive } = useEmpire();
+  const { 
+    projects, 
+    alerts, 
+    empireTasks, 
+    notificationRules,
+    resolveAlert, 
+    dismissAlert, 
+    addEmpireTask, 
+    updateEmpireTask, 
+    deleteEmpireTask,
+    startMonitoring, 
+    stopMonitoring, 
+    isMonitoringActive 
+  } = useEmpire();
   
   const [dialogVisible, setDialogVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<string | null>(null);
@@ -92,6 +105,68 @@ export default function Empire() {
         { text: 'Supprimer', style: 'destructive', onPress: () => deleteEmpireTask(taskId) },
       ]
     );
+  };
+
+  const calculate24hPerformance = () => {
+    const now = Date.now();
+    const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+    
+    // Compter les alertes des dernières 24h
+    const recentAlerts = alerts.filter(alert => 
+      alert.timestamp.getTime() >= twentyFourHoursAgo
+    );
+    
+    // Estimer les requêtes basées sur l'uptime moyen et le nombre de projets
+    // Formule : (nombre de projets × checks par projet par heure × 24h) + estimation trafic utilisateurs
+    const activeProjects = projects.length;
+    const checksPerHour = 20; // Estimation moyenne de vérifications/heure par projet
+    const baseRequests = activeProjects * checksPerHour * 24;
+    
+    // Ajouter une estimation de trafic utilisateur basée sur le status des projets
+    const userTrafficMultiplier = projects.reduce((sum, p) => {
+      // Projets opérationnels = plus de trafic
+      return sum + (p.status === 'operational' ? 1.5 : 0.8);
+    }, 0);
+    
+    const estimatedTotalRequests = Math.floor(baseRequests * userTrafficMultiplier);
+    
+    // Compter les erreurs : alertes critiques = 5 erreurs, warnings = 2 erreurs
+    const criticalErrors = recentAlerts.filter(a => a.type === 'critical').length * 5;
+    const warningErrors = recentAlerts.filter(a => a.type === 'warning').length * 2;
+    const totalErrors = criticalErrors + warningErrors;
+    
+    // Calculer le taux d'erreur
+    const errorRate = estimatedTotalRequests > 0 
+      ? ((totalErrors / estimatedTotalRequests) * 100).toFixed(2)
+      : '0.00';
+    
+    return {
+      totalRequests: estimatedTotalRequests.toLocaleString('fr-FR'),
+      errors: totalErrors,
+      errorRate: `${errorRate}%`,
+    };
+  };
+
+  const performance24h = calculate24hPerformance();
+
+  const getChannelIcon = (channel: string) => {
+    switch (channel) {
+      case 'email': return '📧';
+      case 'sms': return '💬';
+      case 'push': return '🔔';
+      case 'call': return '📞';
+      default: return '🔔';
+    }
+  };
+
+  const getChannelLabel = (channel: string) => {
+    switch (channel) {
+      case 'email': return 'Email';
+      case 'sms': return 'SMS';
+      case 'push': return 'Push';
+      case 'call': return 'Appel';
+      default: return channel;
+    }
   };
 
   return (
@@ -208,15 +283,15 @@ export default function Empire() {
           <View style={styles.performanceContainer}>
             <View style={styles.performanceItem}>
               <Text style={styles.performanceLabel}>Requêtes totales</Text>
-              <Text style={styles.performanceValue}>12,458</Text>
+              <Text style={styles.performanceValue}>{performance24h.totalRequests}</Text>
             </View>
             <View style={styles.performanceItem}>
               <Text style={styles.performanceLabel}>Erreurs</Text>
-              <Text style={[styles.performanceValue, styles.errorValue]}>23</Text>
+              <Text style={[styles.performanceValue, styles.errorValue]}>{performance24h.errors}</Text>
             </View>
             <View style={styles.performanceItem}>
               <Text style={styles.performanceLabel}>Taux d'erreur</Text>
-              <Text style={styles.performanceValue}>0.18%</Text>
+              <Text style={styles.performanceValue}>{performance24h.errorRate}</Text>
             </View>
           </View>
         </Card.Content>
@@ -225,20 +300,43 @@ export default function Empire() {
       <Card style={styles.card} mode="contained">
         <Card.Content>
           <Title style={styles.cardTitle}>🔔 Notifications Configurées</Title>
-          <View style={styles.notification}>
-            <Text style={styles.notifTitle}>✅ Erreur BDD critique</Text>
-            <Paragraph>Email + SMS immédiat</Paragraph>
-          </View>
-          <View style={styles.notification}>
-            <Text style={styles.notifTitle}>✅ Performance dégradée</Text>
-            <Paragraph>Notification push</Paragraph>
-          </View>
-          <View style={styles.notification}>
-            <Text style={styles.notifTitle}>✅ Downtime détecté</Text>
-            <Paragraph>Email + SMS + Appel</Paragraph>
-          </View>
-          <Button mode="outlined" icon="bell-plus" style={styles.addButton}>
-            Configurer les alertes
+          
+          {notificationRules.length === 0 ? (
+            <Paragraph style={styles.cardText}>Aucune règle de notification configurée</Paragraph>
+          ) : (
+            notificationRules.map(rule => (
+              <View key={rule.id} style={styles.notification}>
+                <View style={styles.notificationHeader}>
+                  <View style={styles.notificationTitleContainer}>
+                    <Text style={styles.notifTitle}>
+                      {rule.enabled ? '✅' : '⏸️'} {rule.title}
+                    </Text>
+                  </View>
+                </View>
+                <Paragraph style={styles.notifDescription}>{rule.description}</Paragraph>
+                <View style={styles.notificationChannels}>
+                  {rule.channels.map((channel, idx) => (
+                    <Chip 
+                      key={idx} 
+                      icon={() => <Text>{getChannelIcon(channel)}</Text>}
+                      style={styles.channelChip}
+                      textStyle={styles.channelText}
+                    >
+                      {getChannelLabel(channel)}
+                    </Chip>
+                  ))}
+                </View>
+              </View>
+            ))
+          )}
+          
+          <Button 
+            mode="outlined" 
+            icon="bell-plus" 
+            style={styles.addButton}
+            onPress={() => router.push('/settings')}
+          >
+            Ajouter une règle
           </Button>
         </Card.Content>
       </Card>
@@ -542,24 +640,42 @@ const styles = StyleSheet.create({
     marginVertical: spacing.sm,
     paddingLeft: spacing.sm,
   },
+  notificationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  notificationTitleContainer: {
+    flex: 1,
+  },
   notifTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 2,
     color: colors.white,
   },
+  notifDescription: {
+    color: colors.lightGray,
+    fontSize: 13,
+    marginBottom: spacing.sm,
+  },
+  notificationChannels: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  channelChip: {
+    backgroundColor: colors.mediumGray,
+    marginRight: spacing.xs,
+  },
+  channelText: {
+    fontSize: 12,
+    color: colors.white,
+  },
   addButton: {
     marginTop: spacing.sm,
-  },
-  task: {
-    marginVertical: spacing.sm,
-    paddingLeft: spacing.sm,
-  },
-  taskTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 2,
-    color: colors.white,
   },
   empireTask: {
     marginVertical: spacing.sm,
@@ -576,6 +692,12 @@ const styles = StyleSheet.create({
   },
   empireTaskTitleContainer: {
     flex: 1,
+  },
+  taskTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 2,
+    color: colors.white,
   },
   taskDescription: {
     color: colors.lightGray,

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
 
 // Créer un SVG simple pour l'icône
 const iconSvg = `<?xml version="1.0" encoding="UTF-8"?>
@@ -17,13 +18,37 @@ const splashSvg = `<?xml version="1.0" encoding="UTF-8"?>
   <circle cx="642" cy="1200" r="150" fill="#FFFFFF"/>
 </svg>`;
 
-// Créer les fichiers
-fs.writeFileSync(path.join(__dirname, 'assets', 'icon.svg'), iconSvg);
-fs.writeFileSync(path.join(__dirname, 'assets', 'splash.svg'), splashSvg);
-fs.writeFileSync(path.join(__dirname, 'assets', 'adaptive-icon.svg'), iconSvg);
+async function createAssets() {
+  // Créer les SVG
+  fs.writeFileSync(path.join(__dirname, 'assets', 'icon.svg'), iconSvg);
+  fs.writeFileSync(path.join(__dirname, 'assets', 'splash.svg'), splashSvg);
+  fs.writeFileSync(path.join(__dirname, 'assets', 'adaptive-icon.svg'), iconSvg);
 
-console.log('✅ Assets SVG créés avec succès!');
-console.log('Note: Pour la production, convertissez ces SVG en PNG avec:');
-console.log('  - icon.png (1024x1024)');
-console.log('  - splash.png (1284x2778)');
-console.log('  - adaptive-icon.png (1024x1024)');
+  console.log('✅ Assets SVG créés');
+
+  // Convertir en PNG
+  await sharp(Buffer.from(iconSvg))
+    .resize(1024, 1024)
+    .png()
+    .toFile(path.join(__dirname, 'assets', 'icon.png'));
+  
+  console.log('✅ icon.png créé (1024x1024)');
+
+  await sharp(Buffer.from(splashSvg))
+    .resize(1284, 2778)
+    .png()
+    .toFile(path.join(__dirname, 'assets', 'splash.png'));
+  
+  console.log('✅ splash.png créé (1284x2778)');
+
+  await sharp(Buffer.from(iconSvg))
+    .resize(1024, 1024)
+    .png()
+    .toFile(path.join(__dirname, 'assets', 'adaptive-icon.png'));
+  
+  console.log('✅ adaptive-icon.png créé (1024x1024)');
+  console.log('\n🎉 Tous les assets sont prêts!');
+}
+
+createAssets().catch(console.error);
+

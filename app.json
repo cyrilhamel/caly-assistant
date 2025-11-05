@@ -8,27 +8,26 @@
     "splash": {
       "backgroundColor": "#6200EE"
     },
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cyrilhamel.caly"
     },
     "android": {
-      "package": "com.cyrilhamel.caly"
+      "package": "com.cyrilhamel.caly",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#6200EE"
+      }
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#ffffff",
-          "sounds": ["./assets/notification.wav"]
-        }
-      ]
+      "expo-notifications"
     ],
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "caly-assistant-monitoring"
+        "projectId": "e2afb114-7ec3-4173-8051-24a4b03fad82"
       }
     }
   }
