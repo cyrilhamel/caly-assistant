@@ -23,7 +23,7 @@ interface RecurringTaskDialogProps {
 
 export function RecurringTaskDialog({ visible, onDismiss, onConfirm }: RecurringTaskDialogProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<RecurringTaskTemplate | null>(null);
-  const [customDuration, setCustomDuration] = useState('30');
+  const [customDuration, setCustomDuration] = useState('');
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(() => {
     const date = new Date();
@@ -35,17 +35,23 @@ export function RecurringTaskDialog({ visible, onDismiss, onConfirm }: Recurring
 
   const handleConfirm = () => {
     if (selectedTemplate) {
-      const duration = selectedTemplate.id === 'balade-loulou' 
-        ? parseInt(customDuration) || 30 
+      const duration = selectedTemplate.id === 'balade-louis' 
+        ? parseInt(customDuration) || selectedTemplate.steps[0].duration
         : undefined;
+      console.log('[RecurringDialog] Durée choisie:', duration, 'min');
       onConfirm(selectedTemplate, startDate, endDate, duration);
       onDismiss();
       setSelectedTemplate(null);
+      setCustomDuration('');
     }
   };
 
   const handleTemplateSelect = (template: RecurringTaskTemplate) => {
     setSelectedTemplate(template);
+    // Si c'est la balade avec Louis, mettre la durée par défaut du template
+    if (template.id === 'balade-louis' && template.steps[0]) {
+      setCustomDuration(template.steps[0].duration.toString());
+    }
   };
 
   return (
@@ -81,12 +87,12 @@ export function RecurringTaskDialog({ visible, onDismiss, onConfirm }: Recurring
                             <View style={styles.stepInfo}>
                               <Text style={styles.stepTitle}>{step.title}</Text>
                               <View style={styles.stepMeta}>
-                                <Chip compact mode="outlined" style={styles.durationChip}>
-                                  {step.duration}min
-                                </Chip>
+                                <Text style={styles.durationText}>
+                                  ⏱️ {step.duration} min
+                                </Text>
                                 {step.delayAfterPrevious > 0 && (
                                   <Text style={styles.delayText}>
-                                    (après {step.delayAfterPrevious}min)
+                                    • {step.delayAfterPrevious}min après
                                   </Text>
                                 )}
                               </View>
@@ -98,7 +104,7 @@ export function RecurringTaskDialog({ visible, onDismiss, onConfirm }: Recurring
                   </Card>
                 ))}
 
-                {selectedTemplate && selectedTemplate.id === 'balade-loulou' && (
+                {selectedTemplate && selectedTemplate.id === 'balade-louis' && (
                   <View style={styles.customSection}>
                     <Text style={styles.sectionTitle}>Durée de la balade :</Text>
                     <TextInput
@@ -108,7 +114,11 @@ export function RecurringTaskDialog({ visible, onDismiss, onConfirm }: Recurring
                       keyboardType="numeric"
                       mode="outlined"
                       style={styles.input}
+                      placeholder="Ex: 120 pour 2 heures"
                     />
+                    <Text style={styles.helpText}>
+                      💡 Indiquez la durée souhaitée en minutes (ex: 120 pour 2h)
+                    </Text>
                   </View>
                 )}
 
@@ -253,6 +263,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  durationText: {
+    fontSize: 13,
+    color: colors.gold,
+    fontWeight: '600',
   },
   durationChip: {
     height: 24,

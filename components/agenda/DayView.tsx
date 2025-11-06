@@ -105,6 +105,9 @@ export function DayView({ events, date, onEventPress }: DayViewProps) {
                 <Text style={styles.chipText}>
                   ⏱️ {event.actualDuration || event.duration}min
                 </Text>
+                {event.stepIndex !== undefined && event.stepIndex > 0 && (
+                  <Text style={styles.chipText}>🔗 Étape {event.stepIndex + 1}</Text>
+                )}
                 {event.isFixed && (
                   <Text style={styles.chipText}>📌 Fixe</Text>
                 )}
@@ -195,7 +198,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.lightGray,
     fontWeight: '500',
   },

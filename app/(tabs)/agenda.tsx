@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text, SegmentedButtons, FAB, Dialog, Portal, Button, TextInput, Chip, IconButton } from 'react-native-paper';
+import { Text, SegmentedButtons, FAB, Dialog, Portal, Button, TextInput, Chip, IconButton, Menu } from 'react-native-paper';
+import { DatePickerModal, TimePickerModal } from 'react-native-paper-dates';
 import { useAgenda } from '@/contexts/AgendaContext';
 import { DayView } from '@/components/agenda/DayView';
 import { WeekView } from '@/components/agenda/WeekView';
 import { MonthView } from '@/components/agenda/MonthView';
 import { RecurringTaskDialog } from '@/components/agenda/RecurringTaskDialog';
+import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
 import { AgendaEvent, RecurringTaskTemplate } from '@/types/agenda';
 import { colors } from '@/constants/theme';
 
@@ -22,6 +24,8 @@ export default function AgendaScreen() {
     postponeTask,
     extendTask,
     addRecurringTask,
+    addRestBlock,
+    deleteEvent,
   } = useAgenda();
 
   const [viewMode, setViewMode] = useState<ViewMode>('day');
@@ -30,7 +34,18 @@ export default function AgendaScreen() {
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [showExtendDialog, setShowExtendDialog] = useState(false);
   const [showRecurringDialog, setShowRecurringDialog] = useState(false);
+  const [showRestDialog, setShowRestDialog] = useState(false);
   const [additionalMinutes, setAdditionalMinutes] = useState('30');
+  const [menuVisible, setMenuVisible] = useState(false);
+  
+  // États pour le bloc repos
+  const [restDate, setRestDate] = useState(new Date());
+  const [restStartTime, setRestStartTime] = useState({ hours: 14, minutes: 0 });
+  const [restEndTime, setRestEndTime] = useState({ hours: 15, minutes: 0 });
+  const [restTitle, setRestTitle] = useState('Repos');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const handlePreviousPeriod = () => {
     const newDate = new Date(selectedDate);
@@ -96,25 +111,88 @@ export default function AgendaScreen() {
     }
   };
 
+  const handleDeleteEvent = () => {
+    if (selectedEvent) {
+      Alert.alert(
+        'Supprimer',
+        `Voulez-vous vraiment supprimer "${selectedEvent.title}" ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Supprimer',
+            style: 'destructive',
+            onPress: () => {
+              deleteEvent(selectedEvent.id);
+              setSelectedEvent(null);
+              setShowEventDialog(false);
+            },
+          },
+        ]
+      );
+    }
+  };
+
   const handleAddRecurringTask = (
     template: RecurringTaskTemplate,
     startDate: Date,
     endDate: Date,
     customDuration?: number
   ) => {
-    // Si durée personnalisée (ex: Balade loulou), modifier le template
+    console.log('[Agenda] handleAddRecurringTask - customDuration reçue:', customDuration);
+    // Si durée personnalisée (ex: Balade Louis), modifier UNIQUEMENT le premier step
     if (customDuration && template.steps[0]) {
       const modifiedTemplate = {
         ...template,
-        steps: template.steps.map(step => ({
-          ...step,
-          duration: customDuration,
-        })),
+        steps: template.steps.map((step, index) => 
+          index === 0 
+            ? { ...step, duration: customDuration }
+            : step
+        ),
       };
+      console.log('[Agenda] Template modifié:', modifiedTemplate.steps[0].duration, 'min pour', modifiedTemplate.steps[0].title);
       addRecurringTask(modifiedTemplate, startDate, endDate);
     } else {
+      console.log('[Agenda] Template non modifié, durée par défaut:', template.steps[0]?.duration, 'min');
       addRecurringTask(template, startDate, endDate);
     }
+  };
+
+  const handleAddRestBlock = () => {
+    // Calculer la durée en minutes
+    const startMinutes = restStartTime.hours * 60 + restStartTime.minutes;
+    const endMinutes = restEndTime.hours * 60 + restEndTime.minutes;
+    const duration = endMinutes - startMinutes;
+
+    if (duration <= 0) {
+      Alert.alert('Erreur', 'L\'heure de fin doit être après l\'heure de début');
+      return;
+    }
+
+    const restEvent: Omit<AgendaEvent, 'id' | 'createdAt' | 'updatedAt'> = {
+      title: restTitle || 'Repos',
+      description: 'Bloc de repos - Ne peut pas être déplacé',
+      type: 'appointment',
+      date: restDate,
+      time: `${restStartTime.hours.toString().padStart(2, '0')}:${restStartTime.minutes.toString().padStart(2, '0')}`,
+      duration,
+      isFixed: true,
+      priority: 'normal',
+      status: 'validated',
+      canBeOnWeekend: true,
+      originalDuration: duration,
+      isRecurring: false,
+      sourceType: 'manual',
+    };
+
+    addRestBlock(restEvent);
+    setShowRestDialog(false);
+    setMenuVisible(false);
+    
+    // Réinitialiser les valeurs
+    setRestTitle('Repos');
+    setRestDate(new Date());
+    setRestStartTime({ hours: 14, minutes: 0 });
+    setRestEndTime({ hours: 15, minutes: 0 });
   };
 
   const getDateTitle = () => {
@@ -147,9 +225,10 @@ export default function AgendaScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>📅 Agenda Intelligent</Text>
+    <SwipeableTabWrapper currentRoute="/(tabs)/agenda">
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.title}>📅 Agenda Intelligent</Text>
         
         <View style={styles.controls}>
           <IconButton
@@ -209,10 +288,35 @@ export default function AgendaScreen() {
         )}
       </View>
 
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={() => setShowRecurringDialog(true)}
+      {/* Menu FAB pour choisir entre tâche récurrente ou repos */}
+      <FAB.Group
+        open={menuVisible}
+        visible
+        icon={menuVisible ? 'close' : 'plus'}
+        actions={[
+          {
+            icon: 'refresh',
+            label: 'Tâche récurrente',
+            onPress: () => {
+              setMenuVisible(false);
+              setShowRecurringDialog(true);
+            },
+            color: colors.darkGray,
+            style: { backgroundColor: colors.gold },
+          },
+          {
+            icon: 'sleep',
+            label: 'Bloc repos',
+            onPress: () => {
+              setMenuVisible(false);
+              setShowRestDialog(true);
+            },
+            color: colors.darkGray,
+            style: { backgroundColor: colors.gold },
+          },
+        ]}
+        onStateChange={({ open }) => setMenuVisible(open)}
+        fabStyle={styles.fab}
         color={colors.darkGray}
       />
 
@@ -240,20 +344,39 @@ export default function AgendaScreen() {
             </View>
           </Dialog.Content>
           
-          {selectedEvent && !selectedEvent.isFixed && selectedEvent.status !== 'completed' && (
-            <Dialog.Actions>
-              <Button onPress={() => setShowEventDialog(false)}>Fermer</Button>
-              <Button onPress={handlePostponeTask} textColor={colors.warning}>Reporter</Button>
-              <Button onPress={() => { setShowExtendDialog(true); setShowEventDialog(false); }}>
-                Prolonger
+          <Dialog.Actions>
+            {/* Bouton supprimer à gauche */}
+            {selectedEvent && !selectedEvent.isFixed && (
+              <Button 
+                onPress={handleDeleteEvent} 
+                textColor={colors.error}
+                style={styles.deleteButton}
+              >
+                🗑️ Supprimer
               </Button>
-              {selectedEvent.status !== 'validated' && (
-                <Button onPress={handleValidateTask} textColor={colors.success}>
-                  ✓ Faisable
+            )}
+            
+            {/* Autres boutons à droite */}
+            {selectedEvent && !selectedEvent.isFixed && selectedEvent.status !== 'completed' && (
+              <>
+                <Button onPress={() => setShowEventDialog(false)}>Fermer</Button>
+                <Button onPress={handlePostponeTask} textColor={colors.warning}>Reporter</Button>
+                <Button onPress={() => { setShowExtendDialog(true); setShowEventDialog(false); }}>
+                  Prolonger
                 </Button>
-              )}
-            </Dialog.Actions>
-          )}
+                {selectedEvent.status !== 'validated' && (
+                  <Button onPress={handleValidateTask} textColor={colors.success}>
+                    ✓ Faisable
+                  </Button>
+                )}
+              </>
+            )}
+            
+            {/* Si événement fixe, juste fermer */}
+            {selectedEvent && (selectedEvent.isFixed || selectedEvent.status === 'completed') && (
+              <Button onPress={() => setShowEventDialog(false)}>Fermer</Button>
+            )}
+          </Dialog.Actions>
         </Dialog>
 
         {/* Dialog prolonger tâche */}
@@ -285,7 +408,101 @@ export default function AgendaScreen() {
         onDismiss={() => setShowRecurringDialog(false)}
         onConfirm={handleAddRecurringTask}
       />
+
+      {/* Dialog bloc repos */}
+      <Portal>
+        <Dialog visible={showRestDialog} onDismiss={() => setShowRestDialog(false)}>
+          <Dialog.Title style={{ color: colors.gold }}>😴 Créer un bloc repos</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Nom du repos"
+              value={restTitle}
+              onChangeText={setRestTitle}
+              mode="outlined"
+              style={styles.input}
+              placeholder="Ex: Sieste, Pause déjeuner"
+            />
+
+            <Text style={{ color: colors.white, marginTop: 16, marginBottom: 8 }}>Date :</Text>
+            <Button
+              mode="outlined"
+              onPress={() => setShowDatePicker(true)}
+              icon="calendar"
+            >
+              {restDate.toLocaleDateString('fr-FR')}
+            </Button>
+
+            <Text style={{ color: colors.white, marginTop: 16, marginBottom: 8 }}>Heure de début :</Text>
+            <Button
+              mode="outlined"
+              onPress={() => setShowStartTimePicker(true)}
+              icon="clock"
+            >
+              {`${restStartTime.hours.toString().padStart(2, '0')}:${restStartTime.minutes.toString().padStart(2, '0')}`}
+            </Button>
+
+            <Text style={{ color: colors.white, marginTop: 16, marginBottom: 8 }}>Heure de fin :</Text>
+            <Button
+              mode="outlined"
+              onPress={() => setShowEndTimePicker(true)}
+              icon="clock"
+            >
+              {`${restEndTime.hours.toString().padStart(2, '0')}:${restEndTime.minutes.toString().padStart(2, '0')}`}
+            </Button>
+
+            <Text style={{ color: colors.mediumGray, fontSize: 12, marginTop: 12, fontStyle: 'italic' }}>
+              💡 Ce créneau sera bloqué et aucune tâche ne pourra y être placée automatiquement.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowRestDialog(false)}>Annuler</Button>
+            <Button onPress={handleAddRestBlock} textColor={colors.gold}>Créer</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* DatePicker pour le repos */}
+      <DatePickerModal
+        locale="fr"
+        mode="single"
+        visible={showDatePicker}
+        onDismiss={() => setShowDatePicker(false)}
+        date={restDate}
+        onConfirm={(params) => {
+          setRestDate(params.date as Date);
+          setShowDatePicker(false);
+        }}
+        label="Date du repos"
+      />
+
+      {/* TimePickers pour le repos */}
+      <TimePickerModal
+        locale="fr"
+        visible={showStartTimePicker}
+        onDismiss={() => setShowStartTimePicker(false)}
+        onConfirm={(params) => {
+          setRestStartTime({ hours: params.hours, minutes: params.minutes });
+          setShowStartTimePicker(false);
+        }}
+        hours={restStartTime.hours}
+        minutes={restStartTime.minutes}
+        label="Heure de début"
+      />
+
+      <TimePickerModal
+        locale="fr"
+        visible={showEndTimePicker}
+        onDismiss={() => setShowEndTimePicker(false)}
+        onConfirm={(params) => {
+          setRestEndTime({ hours: params.hours, minutes: params.minutes });
+          setShowEndTimePicker(false);
+        }}
+        hours={restEndTime.hours}
+        minutes={restEndTime.minutes}
+        label="Heure de fin"
+      />
     </SafeAreaView>
+    </SwipeableTabWrapper>
   );
 }
 
@@ -356,5 +573,8 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 8,
+  },
+  deleteButton: {
+    marginRight: 'auto',
   },
 });

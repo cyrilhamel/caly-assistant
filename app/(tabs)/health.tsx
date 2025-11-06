@@ -3,6 +3,7 @@ import { Card, Title, Paragraph, Button, ProgressBar, Portal, Dialog, TextInput,
 import { colors, spacing } from '@/constants/theme';
 import { useHealth } from '@/contexts/HealthContext';
 import { usePedometer } from '@/hooks/usePedometer';
+import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
 import { useState, useEffect } from 'react';
 
 export default function Health() {
@@ -104,6 +105,7 @@ export default function Health() {
   const nextMilestone = health.milestones.find(m => !m.achieved);
 
   return (
+    <SwipeableTabWrapper currentRoute="/(tabs)/health">
     <>
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -394,6 +396,7 @@ export default function Health() {
       </Dialog>
     </Portal>
     </>
+    </SwipeableTabWrapper>
   );
 }
 

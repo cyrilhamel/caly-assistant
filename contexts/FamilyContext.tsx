@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appointment, Medication, Activity, ShoppingItem, ShoppingCategory, AdminDocument, AdminTask } from '@/types/app';
+import { MenstrualCycle } from '@/types';
+import { saveData, loadData } from '@/utils/storage';
 
 // Fonctions utilitaires pour les alertes médicaments
 export const getDaysUntil = (date: Date): number => {
@@ -23,6 +26,7 @@ interface FamilyContextType {
   shoppingList: ShoppingItem[];
   adminDocuments: AdminDocument[];
   adminTasks: AdminTask[];
+  menstrualCycles: MenstrualCycle[];
   addAppointment: (appointment: Omit<Appointment, 'id'>) => void;
   updateAppointment: (id: string, updates: Partial<Appointment>) => void;
   deleteAppointment: (id: string) => void;
@@ -39,6 +43,13 @@ interface FamilyContextType {
   updateAdminTask: (id: string, updates: Partial<AdminTask>) => void;
   toggleAdminTask: (id: string) => void;
   deleteAdminTask: (id: string) => void;
+  addMenstrualCycle: (cycle: Omit<MenstrualCycle, 'id'>) => void;
+  updateMenstrualCycle: (id: string, updates: Partial<MenstrualCycle>) => void;
+  deleteMenstrualCycle: (id: string) => void;
+  getNextPredictedDate: () => Date | null;
+  getAverageCycleLength: () => number | null;
+  getAllAppointments: () => Appointment[];
+  getAllActivities: () => Activity[];
 }
 
 const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
@@ -123,6 +134,8 @@ const initialAdminTasks: AdminTask[] = [
   { id: '2', title: 'Demander certificat médical Albine', deadline: new Date(2026, 4, 1), duration: 30, completed: false },
 ];
 
+const initialMenstrualCycles: MenstrualCycle[] = [];
+
 export function FamilyProvider({ children }: { children: ReactNode }) {
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [medications, setMedications] = useState<Medication[]>(initialMedications);
@@ -130,6 +143,85 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const [shoppingList, setShoppingList] = useState<ShoppingItem[]>(initialShoppingList);
   const [adminDocuments, setAdminDocuments] = useState<AdminDocument[]>(initialAdminDocuments);
   const [adminTasks, setAdminTasks] = useState<AdminTask[]>(initialAdminTasks);
+  const [menstrualCycles, setMenstrualCycles] = useState<MenstrualCycle[]>(initialMenstrualCycles);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Charger les données au démarrage
+  useEffect(() => {
+    const loadAllData = async () => {
+      const [
+        savedAppointments,
+        savedMedications,
+        savedActivities,
+        savedShoppingList,
+        savedAdminDocuments,
+        savedAdminTasks,
+        savedMenstrualCycles
+      ] = await Promise.all([
+        loadData('family_appointments', initialAppointments),
+        loadData('family_medications', initialMedications),
+        loadData('family_activities', initialActivities),
+        loadData('family_shopping', initialShoppingList),
+        loadData('family_admin_docs', initialAdminDocuments),
+        loadData('family_admin_tasks', initialAdminTasks),
+        loadData('family_menstrual_cycles', initialMenstrualCycles)
+      ]);
+
+      setAppointments(savedAppointments);
+      setMedications(savedMedications);
+      setActivities(savedActivities);
+      setShoppingList(savedShoppingList);
+      setAdminDocuments(savedAdminDocuments);
+      setAdminTasks(savedAdminTasks);
+      setMenstrualCycles(savedMenstrualCycles);
+      setIsLoaded(true);
+    };
+
+    loadAllData();
+  }, []);
+
+  // Sauvegarder automatiquement quand les données changent
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('family_appointments', appointments);
+    }
+  }, [appointments, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('family_medications', medications);
+    }
+  }, [medications, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('family_activities', activities);
+    }
+  }, [activities, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('family_shopping', shoppingList);
+    }
+  }, [shoppingList, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('family_admin_docs', adminDocuments);
+    }
+  }, [adminDocuments, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('family_admin_tasks', adminTasks);
+    }
+  }, [adminTasks, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('family_menstrual_cycles', menstrualCycles);
+    }
+  }, [menstrualCycles, isLoaded]);
 
   const addAppointment = (appointment: Omit<Appointment, 'id'>) => {
     const newAppointment: Appointment = {
@@ -234,6 +326,139 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     setAdminTasks(adminTasks.filter(task => task.id !== id));
   };
 
+  // Fonctions pour le suivi menstruel
+  const addMenstrualCycle = (cycle: Omit<MenstrualCycle, 'id'>) => {
+    const newCycle: MenstrualCycle = {
+      ...cycle,
+      id: Date.now().toString(),
+    };
+    setMenstrualCycles([...menstrualCycles, newCycle]);
+  };
+
+  const updateMenstrualCycle = (id: string, updates: Partial<MenstrualCycle>) => {
+    setMenstrualCycles(menstrualCycles.map(cycle => 
+      cycle.id === id ? { ...cycle, ...updates } : cycle
+    ));
+  };
+
+  const deleteMenstrualCycle = (id: string) => {
+    setMenstrualCycles(menstrualCycles.filter(cycle => cycle.id !== id));
+  };
+
+  // Calculer la date prévue des prochaines règles
+  const getNextPredictedDate = (): Date | null => {
+    if (menstrualCycles.length < 2) return null;
+
+    // Trier les cycles par date de début (plus récent en premier)
+    const sortedCycles = [...menstrualCycles]
+      .filter(cycle => cycle.endDate !== null)
+      .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+
+    if (sortedCycles.length < 2) return null;
+
+    // Calculer la durée moyenne des cycles (basé sur les 3 derniers cycles maximum)
+    const recentCycles = sortedCycles.slice(0, 3);
+    let totalDays = 0;
+    
+    for (let i = 0; i < recentCycles.length - 1; i++) {
+      const daysBetween = Math.round(
+        (recentCycles[i].startDate.getTime() - recentCycles[i + 1].startDate.getTime()) / 
+        (1000 * 60 * 60 * 24)
+      );
+      totalDays += daysBetween;
+    }
+
+    const averageCycleLength = Math.round(totalDays / (recentCycles.length - 1));
+
+    // Ajouter la durée moyenne au dernier cycle pour prédire les prochaines
+    const lastCycle = sortedCycles[0];
+    const predictedDate = new Date(lastCycle.startDate);
+    predictedDate.setDate(predictedDate.getDate() + averageCycleLength);
+
+    return predictedDate;
+  };
+
+  // Calculer la durée moyenne des cycles
+  const getAverageCycleLength = (): number | null => {
+    if (menstrualCycles.length < 2) return null;
+
+    const sortedCycles = [...menstrualCycles]
+      .filter(cycle => cycle.endDate !== null)
+      .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+
+    if (sortedCycles.length < 2) return null;
+
+    let totalDays = 0;
+    const cyclesToConsider = Math.min(sortedCycles.length - 1, 3);
+
+    for (let i = 0; i < cyclesToConsider; i++) {
+      const daysBetween = Math.round(
+        (sortedCycles[i].startDate.getTime() - sortedCycles[i + 1].startDate.getTime()) / 
+        (1000 * 60 * 60 * 24)
+      );
+      totalDays += daysBetween;
+    }
+
+    return Math.round(totalDays / cyclesToConsider);
+  };
+
+  // Fonction pour générer les occurrences d'un rendez-vous/activité récurrente
+  const generateRecurringOccurrences = <T extends { id: string; date: Date; isRecurring?: boolean; recurrenceEndDate?: Date }>(
+    item: T,
+    maxWeeks: number = 12 // Par défaut, générer 12 semaines à l'avance
+  ): T[] => {
+    if (!item.isRecurring) {
+      return [item];
+    }
+
+    const occurrences: T[] = [item];
+    const endDate = item.recurrenceEndDate || new Date(Date.now() + maxWeeks * 7 * 24 * 60 * 60 * 1000);
+    
+    let currentDate = new Date(item.date);
+    currentDate.setDate(currentDate.getDate() + 7); // Une semaine après
+
+    let counter = 1;
+    while (currentDate <= endDate) {
+      const occurrence: T = {
+        ...item,
+        id: `${item.id}-occurrence-${counter}`, // ID unique pour chaque occurrence
+        date: new Date(currentDate),
+      };
+      occurrences.push(occurrence);
+      currentDate.setDate(currentDate.getDate() + 7);
+      counter++;
+      
+      // Sécurité : max 52 occurrences (1 an)
+      if (counter >= 52) break;
+    }
+
+    return occurrences;
+  };
+
+  // Fonction pour obtenir tous les rendez-vous incluant les récurrents
+  const getAllAppointments = (): Appointment[] => {
+    const allAppointments: Appointment[] = [];
+    
+    appointments.forEach(apt => {
+      const occurrences = generateRecurringOccurrences(apt);
+      allAppointments.push(...occurrences);
+    });
+
+    return allAppointments;
+  };
+
+  // Fonction pour obtenir toutes les activités incluant les récurrentes
+  const getAllActivities = (): Activity[] => {
+    const allActivities: Activity[] = [];
+    
+    activities.forEach(act => {
+      const occurrences = generateRecurringOccurrences(act);
+      allActivities.push(...occurrences);
+    });
+
+    return allActivities;
+  };
+
   return (
     <FamilyContext.Provider value={{ 
       appointments, 
@@ -242,6 +467,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       shoppingList,
       adminDocuments,
       adminTasks,
+      menstrualCycles,
       addAppointment, 
       updateAppointment, 
       deleteAppointment,
@@ -258,6 +484,13 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       updateAdminTask,
       toggleAdminTask,
       deleteAdminTask,
+      addMenstrualCycle,
+      updateMenstrualCycle,
+      deleteMenstrualCycle,
+      getNextPredictedDate,
+      getAverageCycleLength,
+      getAllAppointments,
+      getAllActivities,
     }}>
       {children}
     </FamilyContext.Provider>

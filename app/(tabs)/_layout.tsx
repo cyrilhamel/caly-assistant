@@ -21,6 +21,8 @@ export default function TabLayout() {
           fontWeight: 'bold',
         },
       }}
+      // Configuration pour activer le swipe
+      sceneContainerStyle={{ backgroundColor: colors.almostBlack }}
     >
       <Tabs.Screen
         name="index"

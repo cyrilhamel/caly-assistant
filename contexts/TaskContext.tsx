@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Task } from '@/types/app';
+import { saveData, loadData } from '@/utils/storage';
 
 interface TaskContextType {
   tasks: Task[];
@@ -64,6 +65,24 @@ const initialTasks: Task[] = [
 
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Charger les données au démarrage
+  useEffect(() => {
+    const loadTasks = async () => {
+      const savedTasks = await loadData('tasks', initialTasks);
+      setTasks(savedTasks);
+      setIsLoaded(true);
+    };
+    loadTasks();
+  }, []);
+
+  // Sauvegarder automatiquement quand les données changent
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('tasks', tasks);
+    }
+  }, [tasks, isLoaded]);
 
   const addTask = (task: Omit<Task, 'id'>) => {
     const newTask: Task = {

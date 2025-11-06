@@ -5,10 +5,12 @@ import { agendaService } from '@/services/agenda/AgendaService';
 import { useTasks } from './TaskContext';
 import { useFamily } from './FamilyContext';
 import { useEmpire } from './EmpireContext';
+import { saveData, loadData } from '@/utils/storage';
 
 interface AgendaContextType {
   events: AgendaEvent[];
   addEvent: (event: Omit<AgendaEvent, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addRestBlock: (event: Omit<AgendaEvent, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateEvent: (id: string, updates: Partial<AgendaEvent>) => void;
   deleteEvent: (id: string) => void;
   
@@ -58,18 +60,36 @@ const initialEvents: AgendaEvent[] = [
 export function AgendaProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<AgendaEvent[]>(initialEvents);
   const [recurringTemplates] = useState<RecurringTaskTemplate[]>(RECURRING_TEMPLATES);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Charger les événements sauvegardés au démarrage
+  useEffect(() => {
+    const loadEvents = async () => {
+      const savedEvents = await loadData('agenda_events', initialEvents);
+      setEvents(savedEvents);
+      setIsLoaded(true);
+    };
+    loadEvents();
+  }, []);
+
+  // Sauvegarder automatiquement les événements
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('agenda_events', events);
+    }
+  }, [events, isLoaded]);
 
   // Récupérer les sources externes
-  const { tasks } = useTasks();
-  const { appointments, activities, adminTasks } = useFamily();
+  const { tasks, deleteTask: deleteTaskFromTasks } = useTasks();
+  const { appointments, activities, adminTasks, deleteAppointment, deleteActivity, getAllAppointments, getAllActivities } = useFamily();
   const { empireTasks: empireTasksFromEmpire } = useEmpire();
 
   // Synchroniser les sources externes avec l'agenda
   useEffect(() => {
     const externalEvents: AgendaEvent[] = [];
 
-    // 1. RDV Famille (fixes)
-    appointments.forEach((appointment) => {
+    // 1. RDV Famille (fixes) - avec occurrences récurrentes générées
+    getAllAppointments().forEach((appointment) => {
       externalEvents.push({
         id: `appointment-${appointment.id}`,
         title: appointment.title,
@@ -91,8 +111,8 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
       });
     });
 
-    // 2. Activités enfants (fixes)
-    activities.forEach((activity) => {
+    // 2. Activités enfants (fixes) - avec occurrences récurrentes générées
+    getAllActivities().forEach((activity) => {
       externalEvents.push({
         id: `activity-${activity.id}`,
         title: activity.title,
@@ -230,6 +250,24 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addRestBlock = (eventData: Omit<AgendaEvent, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newEvent: AgendaEvent = {
+      ...eventData,
+      id: `rest-${Date.now()}`,
+      isFixed: true, // Toujours fixé
+      status: 'validated', // Toujours validé pour être respecté
+      type: 'appointment',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const updatedEvents = [...events, newEvent];
+    // Réorganiser les tâches autour de ce nouveau bloc
+    const reorganized = agendaService.reorganizeSchedule(updatedEvents);
+    setEvents(reorganized);
+    console.log('[AgendaContext] Bloc repos ajouté:', newEvent.title, 'de', newEvent.time, 'durée', newEvent.duration, 'min');
+  };
+
   const updateEvent = (id: string, updates: Partial<AgendaEvent>) => {
     const updatedEvents = events.map((event) =>
       event.id === id
@@ -248,6 +286,22 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteEvent = (id: string) => {
+    // Trouver l'événement à supprimer
+    const eventToDelete = events.find(event => event.id === id);
+    
+    if (eventToDelete) {
+      // Supprimer aussi dans la source d'origine
+      if (eventToDelete.sourceType === 'family' && eventToDelete.sourceId) {
+        if (eventToDelete.type === 'appointment') {
+          deleteAppointment(eventToDelete.sourceId);
+        } else if (eventToDelete.type === 'activity') {
+          deleteActivity(eventToDelete.sourceId);
+        }
+      } else if (eventToDelete.sourceType === 'kanban' && eventToDelete.sourceId) {
+        deleteTaskFromTasks(eventToDelete.sourceId);
+      }
+    }
+    
     const updatedEvents = events.filter((event) => event.id !== id);
     
     // Réorganiser après suppression
@@ -285,26 +339,24 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
     endDate: Date
   ) => {
     const occurrences: AgendaEvent[] = [];
+    let currentDate = new Date(startDate);
+    let occurrenceIndex = 0; // Compteur pour rendre les IDs uniques
 
-    for (const step of template.steps) {
-      let currentDate = new Date(startDate);
-
-      while (currentDate <= endDate) {
-        // Calculer la date/heure en tenant compte du délai
-        const stepDate = new Date(currentDate);
-        if (step.delayAfterPrevious > 0) {
-          stepDate.setMinutes(stepDate.getMinutes() + step.delayAfterPrevious);
-        }
+    // Générer les occurrences (une par semaine)
+    while (currentDate <= endDate) {
+      // Créer les événements pour chaque étape de cette occurrence
+      for (let stepIndex = 0; stepIndex < template.steps.length; stepIndex++) {
+        const step = template.steps[stepIndex];
 
         const occurrence: AgendaEvent = {
-          id: `${template.id}-${step.id}-${currentDate.getTime()}`,
+          id: `${template.id}-${step.id}-${currentDate.getTime()}-${occurrenceIndex}-${stepIndex}`,
           title: step.title,
           description: template.description,
           type: 'recurring',
-          date: stepDate,
+          date: new Date(currentDate), // Date de base, sera ajustée avec le délai
           time: '00:00', // Sera défini par l'auto-planification
           duration: step.duration,
-          isFixed: false,
+          isFixed: false, // Les tâches récurrentes peuvent être déplacées dans leur semaine
           priority: step.priority,
           status: 'scheduled',
           canBeOnWeekend: step.canBeOnWeekend,
@@ -314,17 +366,28 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
           recurrenceInterval: 7,
           recurrenceEndDate: endDate,
           parentRecurringId: template.id,
+          stepIndex, // Ajouter l'index de l'étape
+          delayAfterPrevious: step.delayAfterPrevious, // Stocker le délai
           sourceType: 'manual',
           createdAt: new Date(),
           updatedAt: new Date(),
         };
 
+        console.log(`[AgendaContext] Création occurrence "${step.title}" - Durée: ${step.duration}min - Date: ${currentDate.toLocaleDateString()}`);
         occurrences.push(occurrence);
-
-        // Passer à la semaine suivante (récurrence hebdomadaire par défaut)
-        currentDate.setDate(currentDate.getDate() + 7);
       }
+
+      // Passer à la semaine suivante
+      currentDate.setDate(currentDate.getDate() + 7);
+      occurrenceIndex++; // Incrémenter le compteur
     }
+
+    // Trier les occurrences par date puis par stepIndex pour maintenir l'ordre
+    occurrences.sort((a, b) => {
+      const dateDiff = a.date.getTime() - b.date.getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return (a.stepIndex || 0) - (b.stepIndex || 0);
+    });
 
     const updatedEvents = [...events, ...occurrences];
     const scheduled = agendaService.autoScheduleTasks(updatedEvents);
@@ -377,6 +440,7 @@ export function AgendaProvider({ children }: { children: ReactNode }) {
   const value: AgendaContextType = {
     events,
     addEvent,
+    addRestBlock,
     updateEvent,
     deleteEvent,
     validateTask,

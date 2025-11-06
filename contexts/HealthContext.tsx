@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { HealthData, WeightEntry, WorkoutProgram } from '@/types/app';
+import { saveData, loadData } from '@/utils/storage';
 
 interface HealthContextType {
   health: HealthData;
@@ -407,6 +408,24 @@ const initialHealth: HealthData = {
 
 export function HealthProvider({ children }: { children: ReactNode }) {
   const [health, setHealth] = useState<HealthData>(initialHealth);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Charger les données au démarrage
+  useEffect(() => {
+    const loadHealthData = async () => {
+      const savedHealth = await loadData('health_data', initialHealth);
+      setHealth(savedHealth);
+      setIsLoaded(true);
+    };
+    loadHealthData();
+  }, []);
+
+  // Sauvegarder automatiquement quand les données changent
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('health_data', health);
+    }
+  }, [health, isLoaded]);
 
   // Fonction helper pour calculer le score (définie avant l'useEffect)
   const calculateEnergyScoreHelper = (

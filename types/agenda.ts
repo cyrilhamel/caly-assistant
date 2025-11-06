@@ -56,6 +56,8 @@ export interface AgendaEvent {
   recurrenceInterval?: number; // Ex: tous les 7 jours
   recurrenceEndDate?: Date;
   parentRecurringId?: string; // ID de la tâche récurrente parente
+  stepIndex?: number; // Index de l'étape dans une tâche multi-étapes
+  delayAfterPrevious?: number; // Délai en minutes après l'étape précédente
   
   // Source
   sourceType: 'kanban' | 'family' | 'empire' | 'admin' | 'manual';
@@ -108,14 +110,14 @@ export const RECURRING_TEMPLATES: RecurringTaskTemplate[] = [
     ],
   },
   {
-    id: 'balade-loulou',
-    name: '🐕 Balade avec Loulou',
-    description: 'Balade quotidienne avec le chien',
+    id: 'balade-louis',
+    name: '� Balade avec Louis',
+    description: 'Balade hebdomadaire avec Louis (durée personnalisable)',
     steps: [
       {
         id: 'balade-1',
-        title: 'Balade avec Loulou',
-        duration: 30, // Par défaut, peut être modifié
+        title: 'Balade avec Louis',
+        duration: 60, // Durée par défaut 1h, peut être modifiée
         delayAfterPrevious: 0,
         canBeOnWeekend: true,
         priority: 'normal',

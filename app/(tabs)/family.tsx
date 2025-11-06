@@ -1,9 +1,11 @@
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { Card, Title, Paragraph, Button, Chip, Portal, Dialog, TextInput } from 'react-native-paper';
+import { Card, Title, Paragraph, Button, Chip, Portal, Dialog, TextInput, Switch } from 'react-native-paper';
 import { DatePickerModal, TimePickerModal } from 'react-native-paper-dates';
 import { colors, spacing } from '@/constants/theme';
 import { useFamily } from '@/contexts/FamilyContext';
 import { getDaysUntil, needsRefillAlert, needsPrescriptionAlert } from '@/contexts/FamilyContext';
+import MenstrualTracking from '@/components/family/MenstrualTracking';
+import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
 import { useState } from 'react';
 
 export default function Family() {
@@ -20,6 +22,9 @@ export default function Family() {
   const [newAppLocation, setNewAppLocation] = useState('');
   const [newAppDuration, setNewAppDuration] = useState('');
   const [newAppPerson, setNewAppPerson] = useState<'Albine' | 'Anna' | 'Yoan' | 'Louis' | 'Tom' | 'Moi'>('Albine');
+  const [newAppIsRecurring, setNewAppIsRecurring] = useState(false);
+  const [showAppRecurrenceEndPicker, setShowAppRecurrenceEndPicker] = useState(false);
+  const [newAppRecurrenceEndDate, setNewAppRecurrenceEndDate] = useState<Date | undefined>(undefined);
 
   // États pour l'ajout d'activité
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -31,6 +36,9 @@ export default function Family() {
   const [newActTime, setNewActTime] = useState('14:00');
   const [newActDuration, setNewActDuration] = useState('');
   const [newActChild, setNewActChild] = useState('');
+  const [newActIsRecurring, setNewActIsRecurring] = useState(false);
+  const [showActRecurrenceEndPicker, setShowActRecurrenceEndPicker] = useState(false);
+  const [newActRecurrenceEndDate, setNewActRecurrenceEndDate] = useState<Date | undefined>(undefined);
 
   // États pour la modification de médicament
   const [showEditMed, setShowEditMed] = useState(false);
@@ -102,6 +110,8 @@ export default function Family() {
         location: newAppLocation,
         duration: newAppDuration ? parseInt(newAppDuration) : undefined,
         person: newAppPerson,
+        isRecurring: newAppIsRecurring,
+        recurrenceEndDate: newAppIsRecurring ? newAppRecurrenceEndDate : undefined,
       });
       
       setNewAppTitle('');
@@ -110,6 +120,8 @@ export default function Family() {
       setNewAppTime('');
       setNewAppLocation('');
       setNewAppDuration('');
+      setNewAppIsRecurring(false);
+      setNewAppRecurrenceEndDate(undefined);
       setShowAddAppointment(false);
     }
   };
@@ -123,6 +135,8 @@ export default function Family() {
         time: newActTime,
         duration: newActDuration ? parseInt(newActDuration) : undefined,
         child: newActChild,
+        isRecurring: newActIsRecurring,
+        recurrenceEndDate: newActIsRecurring ? newActRecurrenceEndDate : undefined,
       });
       
       setNewActTitle('');
@@ -131,6 +145,8 @@ export default function Family() {
       setNewActTime('');
       setNewActDuration('');
       setNewActChild('');
+      setNewActIsRecurring(false);
+      setNewActRecurrenceEndDate(undefined);
       setShowAddActivity(false);
     }
   };
@@ -228,6 +244,7 @@ export default function Family() {
     setEditTaskDuration('');
   };
 
+  // Filtrer uniquement les RDV d'aujourd'hui (sans les occurrences récurrentes)
   const todayAppointmentsCount = appointments.filter(apt => {
     const today = new Date().toDateString();
     return apt.date.toDateString() === today;
@@ -245,7 +262,7 @@ export default function Family() {
     
     let totalMinutes = 0;
     
-    // Heures des rendez-vous cette semaine
+    // Heures des rendez-vous cette semaine (uniquement ceux de base, les récurrents seront dans l'agenda)
     appointments.forEach(apt => {
       const aptDate = new Date(apt.date);
       if (aptDate >= weekStart && aptDate < weekEnd && apt.duration) {
@@ -253,7 +270,7 @@ export default function Family() {
       }
     });
     
-    // Heures des activités enfants cette semaine
+    // Heures des activités enfants cette semaine (uniquement celles de base)
     activities.forEach(act => {
       const actDate = new Date(act.date);
       if (actDate >= weekStart && actDate < weekEnd && act.duration) {
@@ -279,6 +296,7 @@ export default function Family() {
 
   const weeklyHours = calculateWeeklyHours();
   return (
+    <SwipeableTabWrapper currentRoute="/(tabs)/family">
     <>
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -310,11 +328,16 @@ export default function Family() {
         <Card.Content>
           <Title style={styles.cardTitle}>👨‍👩‍👧‍👦 Rendez-vous Familiaux</Title>
           
-          {appointments.map(appointment => (
-            <View key={appointment.id} style={styles.appointment}>
+          {appointments.sort((a, b) => a.date.getTime() - b.date.getTime()).map((appointment, index) => (
+            <View key={`${appointment.id}-${index}`} style={styles.appointment}>
               <View style={styles.appointmentTime}>
                 <Text style={styles.time}>{appointment.time}</Text>
                 <Text style={styles.date}>{formatDate(appointment.date)}</Text>
+                {appointment.isRecurring && (
+                  <Chip icon="repeat" compact style={styles.recurringChip}>
+                    Hebdo
+                  </Chip>
+                )}
                 {appointment.duration && (
                   <Chip icon="clock-outline" compact style={styles.durationChipSmall}>
                     {appointment.duration}min
@@ -426,11 +449,16 @@ export default function Family() {
         <Card.Content>
           <Title style={styles.cardTitle}>📅 Activités Enfants</Title>
           
-          {activities.map(activity => (
-            <View key={activity.id} style={styles.activity}>
+          {activities.sort((a, b) => a.date.getTime() - b.date.getTime()).map((activity, index) => (
+            <View key={`${activity.id}-${index}`} style={styles.activity}>
               <View style={styles.activityHeader}>
                 <View style={styles.activityTitleRow}>
                   <Text style={styles.activityTitle}>{activity.title}</Text>
+                  {activity.isRecurring && (
+                    <Chip icon="repeat" compact style={styles.recurringChip}>
+                      Hebdo
+                    </Chip>
+                  )}
                   {activity.duration && (
                     <Chip icon="clock-outline" compact style={styles.durationChipSmall}>
                       {activity.duration}min
@@ -575,6 +603,9 @@ export default function Family() {
           </View>
         </Card.Content>
       </Card>
+
+      {/* Section Suivi Menstruel */}
+      <MenstrualTracking />
     </ScrollView>
 
     {/* Dialog Ajout Rendez-vous */}
@@ -657,6 +688,30 @@ export default function Family() {
                 <Chip selected={newAppPerson === 'Louis'} onPress={() => setNewAppPerson('Louis')}>Louis</Chip>
                 <Chip selected={newAppPerson === 'Tom'} onPress={() => setNewAppPerson('Tom')}>Tom</Chip>
                 <Chip selected={newAppPerson === 'Moi'} onPress={() => setNewAppPerson('Moi')}>Moi</Chip>
+              </View>
+
+              <View style={styles.recurringContainer}>
+                <View style={styles.recurringRow}>
+                  <Text style={styles.recurringLabel}>Rendez-vous hebdomadaire</Text>
+                  <Switch
+                    value={newAppIsRecurring}
+                    onValueChange={setNewAppIsRecurring}
+                    color={colors.gold}
+                  />
+                </View>
+                {newAppIsRecurring && (
+                  <>
+                    <Text style={styles.inputLabel}>Jusqu'au (optionnel)</Text>
+                    <TouchableOpacity 
+                      style={styles.dateButton} 
+                      onPress={() => setShowAppRecurrenceEndPicker(true)}
+                    >
+                      <Text style={styles.dateButtonText}>
+                        {newAppRecurrenceEndDate ? newAppRecurrenceEndDate.toLocaleDateString('fr-FR') : 'Pas de date de fin'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             </Dialog.Content>
           </ScrollView>
@@ -741,6 +796,30 @@ export default function Family() {
                 activeOutlineColor={colors.gold}
                 textColor={colors.white}
               />
+
+              <View style={styles.recurringContainer}>
+                <View style={styles.recurringRow}>
+                  <Text style={styles.recurringLabel}>Activité hebdomadaire</Text>
+                  <Switch
+                    value={newActIsRecurring}
+                    onValueChange={setNewActIsRecurring}
+                    color={colors.gold}
+                  />
+                </View>
+                {newActIsRecurring && (
+                  <>
+                    <Text style={styles.inputLabel}>Jusqu'au (optionnel)</Text>
+                    <TouchableOpacity 
+                      style={styles.dateButton} 
+                      onPress={() => setShowActRecurrenceEndPicker(true)}
+                    >
+                      <Text style={styles.dateButtonText}>
+                        {newActRecurrenceEndDate ? newActRecurrenceEndDate.toLocaleDateString('fr-FR') : 'Pas de date de fin'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
             </Dialog.Content>
           </ScrollView>
         </Dialog.ScrollArea>
@@ -805,6 +884,34 @@ export default function Family() {
       hours={parseInt(newActTime.split(':')[0])}
       minutes={parseInt(newActTime.split(':')[1])}
       label="Sélectionner une heure"
+    />
+
+    {/* DatePicker pour Date de fin de récurrence Rendez-vous */}
+    <DatePickerModal
+      locale="fr"
+      mode="single"
+      visible={showAppRecurrenceEndPicker}
+      onDismiss={() => setShowAppRecurrenceEndPicker(false)}
+      date={newAppRecurrenceEndDate}
+      onConfirm={(params) => {
+        setShowAppRecurrenceEndPicker(false);
+        setNewAppRecurrenceEndDate(params.date);
+      }}
+      label="Date de fin de récurrence"
+    />
+
+    {/* DatePicker pour Date de fin de récurrence Activité */}
+    <DatePickerModal
+      locale="fr"
+      mode="single"
+      visible={showActRecurrenceEndPicker}
+      onDismiss={() => setShowActRecurrenceEndPicker(false)}
+      date={newActRecurrenceEndDate}
+      onConfirm={(params) => {
+        setShowActRecurrenceEndPicker(false);
+        setNewActRecurrenceEndDate(params.date);
+      }}
+      label="Date de fin de récurrence"
     />
 
     {/* Dialog pour modifier les dates de médicament */}
@@ -990,6 +1097,7 @@ export default function Family() {
       </Dialog>
     </Portal>
   </>
+  </SwipeableTabWrapper>
   );
 }
 
@@ -1072,6 +1180,10 @@ const styles = StyleSheet.create({
   chip: {
     marginTop: spacing.sm,
     alignSelf: 'flex-start',
+  },
+  recurringChip: {
+    backgroundColor: colors.gold + '20',
+    marginTop: 2,
   },
   addButton: {
     marginTop: spacing.sm,
@@ -1345,5 +1457,24 @@ const styles = StyleSheet.create({
   adminTaskInfo: {
     color: colors.lightGray,
     fontSize: 13,
+  },
+  recurringContainer: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.mediumGray + '40',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gold + '40',
+  },
+  recurringRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  recurringLabel: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

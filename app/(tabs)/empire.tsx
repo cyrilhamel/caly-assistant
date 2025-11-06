@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { DatePickerModal, TimePickerModal } from 'react-native-paper-dates';
 import { fr, registerTranslation } from 'react-native-paper-dates';
 import { useRouter } from 'expo-router';
+import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
 
 registerTranslation('fr', fr);
 
@@ -170,6 +171,7 @@ export default function Empire() {
   };
 
   return (
+    <SwipeableTabWrapper currentRoute="/(tabs)/empire">
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Title style={styles.title}>💼 Empire Digital</Title>
@@ -496,6 +498,7 @@ export default function Empire() {
         />
       </Portal>
     </ScrollView>
+    </SwipeableTabWrapper>
   );
 }
 

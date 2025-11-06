@@ -21,6 +21,7 @@ class AgendaService {
     canBeOnWeekend: boolean
   ): TimeSlot[] {
     const dayOfWeek = date.getDay();
+    const now = new Date();
     
     // Si week-end et la tâche ne peut pas être le week-end, retourner vide
     if ((dayOfWeek === 0 || dayOfWeek === 6) && !canBeOnWeekend) {
@@ -117,6 +118,17 @@ class AgendaService {
       }
     }
 
+    // Filtrer les créneaux qui sont dans le passé (si c'est aujourd'hui)
+    const isToday = 
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+
+    if (isToday) {
+      // Garder seulement les créneaux qui commencent après maintenant
+      return availableSlots.filter(slot => slot.start > now);
+    }
+
     return availableSlots;
   }
 
@@ -131,7 +143,7 @@ class AgendaService {
    * Trouve le premier créneau disponible pour une tâche
    */
   findNextAvailableSlot(
-    task: Omit<AgendaEvent, 'date' | 'time'>,
+    task: Partial<AgendaEvent> & Omit<AgendaEvent, 'date' | 'time'>,
     existingEvents: AgendaEvent[],
     startDate: Date = new Date()
   ): { date: Date; time: string } | null {
@@ -139,9 +151,20 @@ class AgendaService {
     const effectiveDuration = task.actualDuration || task.duration;
     const taskDuration = effectiveDuration + (effectiveDuration > 60 ? this.config.breakDuration : 0);
 
+    // Si c'est une tâche récurrente avec une date assignée, chercher uniquement dans sa semaine
+    let searchStartDate = startDate;
+    let searchEndDays = this.config.lookAheadDays;
+    
+    if (task.isRecurring && task.date) {
+      searchStartDate = new Date(task.date);
+      searchStartDate.setHours(0, 0, 0, 0);
+      // Chercher uniquement dans les 7 jours suivants (la semaine de cette occurrence)
+      searchEndDays = 7;
+    }
+
     // Chercher dans les X prochains jours
-    for (let i = 0; i < this.config.lookAheadDays; i++) {
-      const checkDate = new Date(startDate);
+    for (let i = 0; i < searchEndDays; i++) {
+      const checkDate = new Date(searchStartDate);
       checkDate.setDate(checkDate.getDate() + i);
       checkDate.setHours(0, 0, 0, 0);
 
@@ -200,9 +223,64 @@ class AgendaService {
     });
 
     const scheduledEvents = [...fixedEvents];
+    const processedStepGroups = new Set<string>();
 
     // Placer chaque tâche
     for (const task of tasksToSchedule) {
+      // Si c'est une étape d'une tâche multi-étapes et qu'on l'a déjà traitée, skip
+      if (task.parentRecurringId && task.stepIndex !== undefined) {
+        const groupKey = `${task.parentRecurringId}-${task.date.getTime()}`;
+        
+        if (processedStepGroups.has(groupKey)) {
+          continue; // Déjà traité avec son groupe
+        }
+        
+        // Trouver toutes les étapes du même groupe (même parent et même date de base)
+        const relatedSteps = tasksToSchedule.filter(t => 
+          t.parentRecurringId === task.parentRecurringId &&
+          t.date.getTime() === task.date.getTime()
+        ).sort((a, b) => (a.stepIndex || 0) - (b.stepIndex || 0));
+        
+        // Planifier la première étape
+        if (relatedSteps.length > 0) {
+          const firstStep = relatedSteps[0];
+          const firstSlot = this.findNextAvailableSlot(firstStep, scheduledEvents, startDate);
+          
+          if (firstSlot) {
+            // Planifier toutes les étapes en cascade
+            let currentTime = new Date(firstSlot.date);
+            const [hours, minutes] = firstSlot.time.split(':').map(Number);
+            currentTime.setHours(hours, minutes, 0, 0);
+            
+            for (const step of relatedSteps) {
+              // Si pas la première étape, ajouter le délai
+              if (step.stepIndex && step.stepIndex > 0 && step.delayAfterPrevious) {
+                currentTime.setMinutes(currentTime.getMinutes() + step.delayAfterPrevious);
+              }
+              
+              const scheduledTask: AgendaEvent = {
+                ...step,
+                date: new Date(currentTime),
+                time: `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`,
+                status: step.status === 'in-progress' ? 'in-progress' : 'scheduled',
+                updatedAt: new Date(),
+              };
+              
+              scheduledEvents.push(scheduledTask);
+              console.log(`[AgendaService] Scheduled step ${step.stepIndex}: ${step.title} at ${scheduledTask.time} on ${scheduledTask.date.toLocaleDateString()}`);
+              
+              // Avancer le temps de la durée de cette étape pour la prochaine
+              currentTime.setMinutes(currentTime.getMinutes() + step.duration);
+            }
+          }
+          
+          processedStepGroups.add(groupKey);
+        }
+        
+        continue;
+      }
+      
+      // Tâche normale (non multi-étapes)
       const slot = this.findNextAvailableSlot(task, scheduledEvents, startDate);
       
       if (slot) {
@@ -215,10 +293,22 @@ class AgendaService {
           updatedAt: new Date(),
         };
         scheduledEvents.push(scheduledTask);
-        console.log(`[AgendaService] Scheduled: ${task.title} at ${slot.time} on ${slot.date.toLocaleDateString()}`);
+        console.log(`[AgendaService] Scheduled: ${task.title} (${task.duration}min) at ${slot.time} on ${slot.date.toLocaleDateString()}`);
       } else {
-        // Impossible de placer la tâche
-        console.warn(`Impossible de placer la tâche: ${task.title}`);
+        // Si c'est une tâche récurrente avec une date définie, la garder même si pas de créneau
+        if (task.isRecurring && task.date) {
+          const fallbackTask: AgendaEvent = {
+            ...task,
+            time: '09:00', // Heure par défaut
+            status: 'scheduled',
+            updatedAt: new Date(),
+          };
+          scheduledEvents.push(fallbackTask);
+          console.warn(`[AgendaService] Impossible de placer "${task.title}" (${task.duration}min) - placée à 09:00 par défaut`);
+        } else {
+          // Impossible de placer la tâche
+          console.warn(`Impossible de placer la tâche: ${task.title} (durée: ${task.duration}min)`);
+        }
       }
     }
 

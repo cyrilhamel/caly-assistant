@@ -5,6 +5,7 @@ import { useTasks } from '@/contexts/TaskContext';
 import { useFamily } from '@/contexts/FamilyContext';
 import { useState } from 'react';
 import type { ShoppingCategory } from '@/types/app';
+import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
 
 export default function Kanban() {
   const { tasks, moveTask, deleteTask, addTask } = useTasks();
@@ -126,6 +127,7 @@ export default function Kanban() {
   );
 
   return (
+    <SwipeableTabWrapper currentRoute="/(tabs)/kanban">
     <>
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -339,6 +341,7 @@ export default function Kanban() {
       </Dialog>
     </Portal>
     </>
+    </SwipeableTabWrapper>
   );
 }
 

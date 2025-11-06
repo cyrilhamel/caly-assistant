@@ -69,6 +69,8 @@ export interface Appointment {
   location: string;
   duration?: number; // durée en minutes
   person: 'Albine' | 'Anna' | 'Yoan' | 'Louis' | 'Tom' | 'Moi';
+  isRecurring?: boolean; // Rendez-vous hebdomadaire
+  recurrenceEndDate?: Date; // Date de fin de la récurrence
 }
 
 export interface Medication {
@@ -89,6 +91,8 @@ export interface Activity {
   time?: string;
   duration?: number; // durée en minutes
   child: string;
+  isRecurring?: boolean; // Activité hebdomadaire
+  recurrenceEndDate?: Date; // Date de fin de la récurrence
 }
 
 export type ShoppingCategory = 'Sec' | 'Légumes' | 'Frais' | 'Viandes' | 'Surgelé';

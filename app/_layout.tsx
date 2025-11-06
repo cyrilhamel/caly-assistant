@@ -1,5 +1,6 @@
 import { Slot } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { theme } from '@/constants/theme';
 import { TaskProvider } from '@/contexts/TaskContext';
 import { HealthProvider } from '@/contexts/HealthContext';
@@ -12,18 +13,20 @@ registerTranslation('fr', fr);
 
 export default function RootLayout() {
   return (
-    <PaperProvider theme={theme}>
-      <TaskProvider>
-        <HealthProvider>
-          <FamilyProvider>
-            <EmpireProvider>
-              <AgendaProvider>
-                <Slot />
-              </AgendaProvider>
-            </EmpireProvider>
-          </FamilyProvider>
-        </HealthProvider>
-      </TaskProvider>
-    </PaperProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PaperProvider theme={theme}>
+        <TaskProvider>
+          <HealthProvider>
+            <FamilyProvider>
+              <EmpireProvider>
+                <AgendaProvider>
+                  <Slot />
+                </AgendaProvider>
+              </EmpireProvider>
+            </FamilyProvider>
+          </HealthProvider>
+        </TaskProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }

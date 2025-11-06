@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Project, Alert, EmpireTask, NotificationRule } from '@/types/app';
 import { monitoringService, notificationService } from '@/services/monitoring';
 import type { MonitoringConfig } from '@/services/monitoring';
+import { saveData, loadData } from '@/utils/storage';
 
 interface EmpireContextType {
   projects: Project[];
@@ -97,6 +98,51 @@ export function EmpireProvider({ children }: { children: ReactNode }) {
   const [empireTasks, setEmpireTasks] = useState<EmpireTask[]>(initialEmpireTasks);
   const [notificationRules, setNotificationRules] = useState<NotificationRule[]>(initialNotificationRules);
   const [isMonitoringActive, setIsMonitoringActive] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Charger les données au démarrage
+  useEffect(() => {
+    const loadEmpireData = async () => {
+      const [savedProjects, savedAlerts, savedTasks, savedRules] = await Promise.all([
+        loadData('empire_projects', initialProjects),
+        loadData('empire_alerts', initialAlerts),
+        loadData('empire_tasks', initialEmpireTasks),
+        loadData('empire_notification_rules', initialNotificationRules)
+      ]);
+
+      setProjects(savedProjects);
+      setAlerts(savedAlerts);
+      setEmpireTasks(savedTasks);
+      setNotificationRules(savedRules);
+      setIsLoaded(true);
+    };
+    loadEmpireData();
+  }, []);
+
+  // Sauvegarder automatiquement
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('empire_projects', projects);
+    }
+  }, [projects, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('empire_alerts', alerts);
+    }
+  }, [alerts, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('empire_tasks', empireTasks);
+    }
+  }, [empireTasks, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveData('empire_notification_rules', notificationRules);
+    }
+  }, [notificationRules, isLoaded]);
 
   // Initialiser le service de notifications
   useEffect(() => {

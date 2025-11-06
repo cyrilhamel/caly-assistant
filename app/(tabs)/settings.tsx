@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { monitoringService, externalMonitoringService, notificationService } from '@/services/monitoring';
 import type { MonitoringConfig, NotificationConfig } from '@/services/monitoring';
 import { useEmpire } from '@/contexts/EmpireContext';
+import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
 
 export default function Settings() {
   const { projects, isMonitoringActive, startMonitoring, stopMonitoring } = useEmpire();
@@ -155,6 +156,7 @@ export default function Settings() {
   };
 
   return (
+    <SwipeableTabWrapper currentRoute="/(tabs)/settings">
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Title style={styles.title}>⚙️ Paramètres</Title>
@@ -649,6 +651,7 @@ export default function Settings() {
         </Dialog>
       </Portal>
     </ScrollView>
+    </SwipeableTabWrapper>
   );
 }
 

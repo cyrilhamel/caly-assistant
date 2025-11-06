@@ -89,3 +89,10 @@ export interface EnergyScore {
   level: 'low' | 'moderate' | 'high';
   suggestion: string;
 }
+
+export interface MenstrualCycle {
+  id: string;
+  startDate: Date;
+  endDate: Date | null; // null si en cours
+  notes?: string;
+}
