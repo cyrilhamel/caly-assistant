@@ -6,6 +6,7 @@ import { monitoringService, externalMonitoringService, notificationService } fro
 import type { MonitoringConfig, NotificationConfig } from '@/services/monitoring';
 import { useEmpire } from '@/contexts/EmpireContext';
 import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
+import GoogleCalendarSettings from '@/components/settings/GoogleCalendarSettings';
 
 export default function Settings() {
   const { projects, isMonitoringActive, startMonitoring, stopMonitoring } = useEmpire();
@@ -160,8 +161,11 @@ export default function Settings() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Title style={styles.title}>⚙️ Paramètres</Title>
-        <Paragraph>Configuration du monitoring</Paragraph>
+        <Paragraph>Configuration de l'application</Paragraph>
       </View>
+
+      {/* Google Calendar Sync */}
+      <GoogleCalendarSettings />
 
       {/* État du Monitoring */}
       <Card style={styles.card} mode="contained">

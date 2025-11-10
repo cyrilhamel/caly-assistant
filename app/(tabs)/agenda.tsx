@@ -7,9 +7,8 @@ import { useAgenda } from '@/contexts/AgendaContext';
 import { DayView } from '@/components/agenda/DayView';
 import { WeekView } from '@/components/agenda/WeekView';
 import { MonthView } from '@/components/agenda/MonthView';
-import { RecurringTaskDialog } from '@/components/agenda/RecurringTaskDialog';
 import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
-import { AgendaEvent, RecurringTaskTemplate } from '@/types/agenda';
+import { AgendaEvent } from '@/types/agenda';
 import { colors } from '@/constants/theme';
 
 type ViewMode = 'day' | 'week' | 'month';
@@ -23,7 +22,6 @@ export default function AgendaScreen() {
     validateTask,
     postponeTask,
     extendTask,
-    addRecurringTask,
     addRestBlock,
     deleteEvent,
   } = useAgenda();
@@ -33,10 +31,8 @@ export default function AgendaScreen() {
   const [selectedEvent, setSelectedEvent] = useState<AgendaEvent | null>(null);
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [showExtendDialog, setShowExtendDialog] = useState(false);
-  const [showRecurringDialog, setShowRecurringDialog] = useState(false);
   const [showRestDialog, setShowRestDialog] = useState(false);
   const [additionalMinutes, setAdditionalMinutes] = useState('30');
-  const [menuVisible, setMenuVisible] = useState(false);
   
   // États pour le bloc repos
   const [restDate, setRestDate] = useState(new Date());
@@ -132,31 +128,6 @@ export default function AgendaScreen() {
     }
   };
 
-  const handleAddRecurringTask = (
-    template: RecurringTaskTemplate,
-    startDate: Date,
-    endDate: Date,
-    customDuration?: number
-  ) => {
-    console.log('[Agenda] handleAddRecurringTask - customDuration reçue:', customDuration);
-    // Si durée personnalisée (ex: Balade Louis), modifier UNIQUEMENT le premier step
-    if (customDuration && template.steps[0]) {
-      const modifiedTemplate = {
-        ...template,
-        steps: template.steps.map((step, index) => 
-          index === 0 
-            ? { ...step, duration: customDuration }
-            : step
-        ),
-      };
-      console.log('[Agenda] Template modifié:', modifiedTemplate.steps[0].duration, 'min pour', modifiedTemplate.steps[0].title);
-      addRecurringTask(modifiedTemplate, startDate, endDate);
-    } else {
-      console.log('[Agenda] Template non modifié, durée par défaut:', template.steps[0]?.duration, 'min');
-      addRecurringTask(template, startDate, endDate);
-    }
-  };
-
   const handleAddRestBlock = () => {
     // Calculer la durée en minutes
     const startMinutes = restStartTime.hours * 60 + restStartTime.minutes;
@@ -186,7 +157,6 @@ export default function AgendaScreen() {
 
     addRestBlock(restEvent);
     setShowRestDialog(false);
-    setMenuVisible(false);
     
     // Réinitialiser les valeurs
     setRestTitle('Repos');
@@ -288,35 +258,12 @@ export default function AgendaScreen() {
         )}
       </View>
 
-      {/* Menu FAB pour choisir entre tâche récurrente ou repos */}
-      <FAB.Group
-        open={menuVisible}
-        visible
-        icon={menuVisible ? 'close' : 'plus'}
-        actions={[
-          {
-            icon: 'refresh',
-            label: 'Tâche récurrente',
-            onPress: () => {
-              setMenuVisible(false);
-              setShowRecurringDialog(true);
-            },
-            color: colors.darkGray,
-            style: { backgroundColor: colors.gold },
-          },
-          {
-            icon: 'sleep',
-            label: 'Bloc repos',
-            onPress: () => {
-              setMenuVisible(false);
-              setShowRestDialog(true);
-            },
-            color: colors.darkGray,
-            style: { backgroundColor: colors.gold },
-          },
-        ]}
-        onStateChange={({ open }) => setMenuVisible(open)}
-        fabStyle={styles.fab}
+      {/* FAB pour bloc repos */}
+      <FAB
+        icon="sleep"
+        label="Bloc repos"
+        onPress={() => setShowRestDialog(true)}
+        style={styles.fab}
         color={colors.darkGray}
       />
 
@@ -401,13 +348,6 @@ export default function AgendaScreen() {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-
-      {/* Dialog tâches récurrentes */}
-      <RecurringTaskDialog
-        visible={showRecurringDialog}
-        onDismiss={() => setShowRecurringDialog(false)}
-        onConfirm={handleAddRecurringTask}
-      />
 
       {/* Dialog bloc repos */}
       <Portal>

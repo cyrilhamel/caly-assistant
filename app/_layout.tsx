@@ -7,6 +7,7 @@ import { HealthProvider } from '@/contexts/HealthContext';
 import { FamilyProvider } from '@/contexts/FamilyContext';
 import { EmpireProvider } from '@/contexts/EmpireContext';
 import { AgendaProvider } from '@/contexts/AgendaContext';
+import { GoogleCalendarProvider } from '@/contexts/GoogleCalendarContext';
 import { fr, registerTranslation } from 'react-native-paper-dates';
 
 registerTranslation('fr', fr);
@@ -19,9 +20,11 @@ export default function RootLayout() {
           <HealthProvider>
             <FamilyProvider>
               <EmpireProvider>
-                <AgendaProvider>
-                  <Slot />
-                </AgendaProvider>
+                <GoogleCalendarProvider>
+                  <AgendaProvider>
+                    <Slot />
+                  </AgendaProvider>
+                </GoogleCalendarProvider>
               </EmpireProvider>
             </FamilyProvider>
           </HealthProvider>

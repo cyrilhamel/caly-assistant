@@ -60,71 +60,13 @@ export interface AgendaEvent {
   delayAfterPrevious?: number; // Délai en minutes après l'étape précédente
   
   // Source
-  sourceType: 'kanban' | 'family' | 'empire' | 'admin' | 'manual';
+  sourceType: 'kanban' | 'family' | 'empire' | 'admin' | 'manual' | 'google';
   sourceId?: string; // ID de la tâche source
   
   // Métadonnées
   createdAt: Date;
   updatedAt: Date;
 }
-
-export interface RecurringTaskTemplate {
-  id: string;
-  name: string;
-  description: string;
-  steps: RecurringTaskStep[];
-}
-
-export interface RecurringTaskStep {
-  id: string;
-  title: string;
-  duration: number; // En minutes
-  delayAfterPrevious: number; // Délai après l'étape précédente (en minutes)
-  canBeOnWeekend: boolean;
-  priority: Priority;
-}
-
-// Templates prédéfinis
-export const RECURRING_TEMPLATES: RecurringTaskTemplate[] = [
-  {
-    id: 'lessive',
-    name: '🧺 Lessive complète',
-    description: 'Lancer la lessive puis l\'étendre',
-    steps: [
-      {
-        id: 'lessive-1',
-        title: 'Lancer la lessive',
-        duration: 5,
-        delayAfterPrevious: 0,
-        canBeOnWeekend: true,
-        priority: 'normal',
-      },
-      {
-        id: 'lessive-2',
-        title: 'Étendre la lessive',
-        duration: 20,
-        delayAfterPrevious: 30, // 30 minutes après
-        canBeOnWeekend: true,
-        priority: 'normal',
-      },
-    ],
-  },
-  {
-    id: 'balade-louis',
-    name: '� Balade avec Louis',
-    description: 'Balade hebdomadaire avec Louis (durée personnalisable)',
-    steps: [
-      {
-        id: 'balade-1',
-        title: 'Balade avec Louis',
-        duration: 60, // Durée par défaut 1h, peut être modifiée
-        delayAfterPrevious: 0,
-        canBeOnWeekend: true,
-        priority: 'normal',
-      },
-    ],
-  },
-];
 
 // Configuration des horaires de travail
 export const WORK_SCHEDULE: WorkSchedule[] = [

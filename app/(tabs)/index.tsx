@@ -8,7 +8,7 @@ import { useEmpire } from '@/contexts/EmpireContext';
 import { useAgenda } from '@/contexts/AgendaContext';
 import { SleepDialog } from '@/components/common/SleepDialog';
 import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 
 export default function Dashboard() {
@@ -20,20 +20,31 @@ export default function Dashboard() {
   const router = useRouter();
   
   const [showSleepDialog, setShowSleepDialog] = useState(false);
-  const [sleepDialogShownToday, setSleepDialogShownToday] = useState(false);
+  const hasShownDialogRef = useRef(false);
 
-  // Vérifier au montage si on doit demander le sommeil (une seule fois par jour)
+  // Vérifier au montage si on doit demander le sommeil (une seule fois par session)
   useEffect(() => {
+    // Vérifier uniquement si le dialogue n'a pas déjà été montré cette session
+    if (hasShownDialogRef.current) {
+      return;
+    }
+
     const today = new Date().toISOString().split('T')[0];
+    const shouldShow = health.lastSleepUpdate !== today;
     
-    if (needsSleepInput() && !sleepDialogShownToday) {
+    console.log('[Dashboard] needsSleepInput():', shouldShow);
+    console.log('[Dashboard] lastSleepUpdate:', health.lastSleepUpdate);
+    console.log('[Dashboard] Today:', today);
+    
+    if (shouldShow) {
       // Attendre 1 seconde pour laisser l'app se charger
       setTimeout(() => {
+        console.log('[Dashboard] Showing sleep dialog');
         setShowSleepDialog(true);
-        setSleepDialogShownToday(true);
+        hasShownDialogRef.current = true;
       }, 1000);
     }
-  }, [needsSleepInput, sleepDialogShownToday]);
+  }, []); // Exécuter uniquement au montage initial
 
   // Recalculer le score d'énergie quand les données changent
   useEffect(() => {
@@ -53,9 +64,9 @@ export default function Dashboard() {
   }, [events, appointments, alerts, health.steps, health.workoutProgram]);
 
   const handleSleepConfirm = (hours: number) => {
+    console.log('[Dashboard] Sleep confirmed:', hours, 'hours');
     updateSleepHours(hours);
     setShowSleepDialog(false);
-    // Ne pas réinitialiser sleepDialogShownToday ici pour éviter de réafficher la popup
   };
 
   // Calculer la progression du poids depuis le premier historique

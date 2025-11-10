@@ -675,11 +675,13 @@ export function HealthProvider({ children }: { children: ReactNode }) {
 
   const updateSleepHours = (hours: number) => {
     const today = new Date().toISOString().split('T')[0];
+    console.log('[HealthContext] updateSleepHours:', hours, 'hours, date:', today);
     const updatedHealth = {
       ...health,
       sleepHours: hours,
       lastSleepUpdate: today,
     };
+    console.log('[HealthContext] Updated lastSleepUpdate:', updatedHealth.lastSleepUpdate);
     setHealth(updatedHealth);
     
     // Recalculer automatiquement le score d'énergie

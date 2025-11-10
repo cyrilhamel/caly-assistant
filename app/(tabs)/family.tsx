@@ -182,10 +182,11 @@ export default function Family() {
     setShowAdminDatePicker(true);
   };
 
-  const handleSaveAdminDate = () => {
-    if (editingAdminPerson && editingAdminField && editAdminDate) {
+  const handleSaveAdminDate = (date?: Date) => {
+    const dateToSave = date || editAdminDate;
+    if (editingAdminPerson && editingAdminField && dateToSave) {
       updateAdminDocument(editingAdminPerson, {
-        [editingAdminField]: editAdminDate,
+        [editingAdminField]: dateToSave,
       });
       setShowAdminDatePicker(false);
       setEditingAdminPerson(null);
@@ -988,8 +989,7 @@ export default function Family() {
       onDismiss={() => setShowAdminDatePicker(false)}
       date={editAdminDate}
       onConfirm={(params) => {
-        setEditAdminDate(params.date);
-        handleSaveAdminDate();
+        handleSaveAdminDate(params.date);
       }}
       label="Modifier la date"
     />

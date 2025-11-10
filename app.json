@@ -4,6 +4,7 @@
     "slug": "caly-assistant",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "caly",
     "userInterfaceStyle": "automatic",
     "splash": {
       "backgroundColor": "#6200EE"
