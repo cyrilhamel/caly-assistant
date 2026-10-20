@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+  html, body { margin: 0; background: transparent; font-family: 'Segoe UI', sans-serif; color: #fff; overflow: hidden; }
+  #box { margin: 4px; padding: 10px 12px; border-radius: 14px; background: rgba(20, 22, 35, 0.88); border: 1px solid rgba(255,255,255,.15); -webkit-app-region: drag; }
+  h1 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; opacity: .6; display: flex; justify-content: space-between; }
+  .goal { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; border-top: 1px solid rgba(255,255,255,.08); -webkit-app-region: no-drag; }
+  .goal button { background: none; border: 1.5px solid #8ab4ff; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; flex: none; color: #8ab4ff; font-size: 11px; line-height: 1; }
+  .goal button:hover { background: #8ab4ff; color: #000; }
+  .urgent { color: #ff8a8a; font-weight: 600; }
+  .empty { opacity: .6; font-size: 13px; padding: 6px 0; }
+  a { color: #8ab4ff; cursor: pointer; -webkit-app-region: no-drag; text-transform: none; letter-spacing: 0; }
+</style>
+</head>
+<body>
+<div id="box">
+  <h1><span>🎯 Objectifs</span><a id="open">Ouvrir</a></h1>
+  <div id="goals"></div>
+</div>
+<script>
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function render() {
+  const { goals } = await caly.getState();
+  const el = document.getElementById('goals');
+  if (!goals.length) { el.innerHTML = '<div class="empty">Tout est fait ✅</div>'; return; }
+  el.innerHTML = goals.slice(0, 4).map((g) =>
+    `<div class="goal"><button data-id="${esc(g.id)}" title="Terminé">✓</button><span class="${g.status === 'urgent' ? 'urgent' : ''}">${esc(g.title)}</span></div>`
+  ).join('');
+  el.querySelectorAll('button').forEach((b) => b.onclick = () => caly.completeTask(b.dataset.id));
+}
+document.getElementById('open').onclick = () => caly.openDashboard();
+caly.onUpdate(render);
+render();
+</script>
+</body>
+</html>

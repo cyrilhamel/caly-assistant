@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { DesktopSyncConfig, loadDesktopConfig, pullTasks, pushTasks } from '@/services/desktopSync/DesktopSyncService';
 import { Task } from '@/types/app';
 import { saveData, loadData } from '@/utils/storage';
 
@@ -8,6 +9,7 @@ interface TaskContextType {
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   moveTask: (id: string, newStatus: Task['status']) => void;
+  reloadDesktopConfig: () => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -66,6 +68,12 @@ const initialTasks: Task[] = [
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [configVersion, setConfigVersion] = useState(0);
+  const syncConfig = useRef<DesktopSyncConfig | null>(null);
+  const lastRev = useRef(-1);
+  const lastSyncedJson = useRef('');
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
 
   // Charger les données au démarrage
   useEffect(() => {
@@ -83,6 +91,52 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       saveData('tasks', tasks);
     }
   }, [tasks, isLoaded]);
+
+  const reloadDesktopConfig = () => {
+    loadDesktopConfig().then((c) => {
+      syncConfig.current = c;
+      lastRev.current = -1;
+      lastSyncedJson.current = '';
+      setConfigVersion((v) => v + 1);
+    });
+  };
+
+  useEffect(reloadDesktopConfig, []);
+
+  // Pousse les changements locaux vers Caly Desktop
+  useEffect(() => {
+    const config = syncConfig.current;
+    const json = JSON.stringify(tasks);
+    if (!isLoaded || !config || json === lastSyncedJson.current) return;
+    const timer = setTimeout(() => {
+      pushTasks(config, tasks)
+        .then((rev) => {
+          lastRev.current = rev;
+          lastSyncedJson.current = json;
+        })
+        .catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [tasks, isLoaded, configVersion]);
+
+  // Récupère les changements faits sur le PC
+  useEffect(() => {
+    const config = syncConfig.current;
+    if (!isLoaded || !config) return;
+    const poll = async () => {
+      try {
+        const remote = await pullTasks(config);
+        if (remote.rev === lastRev.current || remote.rev === 0) return;
+        const json = JSON.stringify(remote.tasks);
+        lastRev.current = remote.rev;
+        lastSyncedJson.current = json;
+        if (json !== JSON.stringify(tasksRef.current)) setTasks(remote.tasks);
+      } catch {}
+    };
+    poll();
+    const id = setInterval(poll, 5000);
+    return () => clearInterval(id);
+  }, [isLoaded, configVersion]);
 
   const addTask = (task: Omit<Task, 'id'>) => {
     const newTask: Task = {
@@ -107,7 +161,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <TaskContext.Provider value={{ tasks, addTask, updateTask, deleteTask, moveTask }}>
+    <TaskContext.Provider value={{ tasks, addTask, updateTask, deleteTask, moveTask, reloadDesktopConfig }}>
       {children}
     </TaskContext.Provider>
   );

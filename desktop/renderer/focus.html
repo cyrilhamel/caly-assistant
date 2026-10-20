@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+  html, body { margin: 0; height: 100%; background: radial-gradient(circle at top, #1f2547, #0b0d18); color: #fff; font-family: 'Segoe UI', sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 8vh 24px; text-align: center; }
+  h1 { font-size: 40px; margin: 0 0 6px; }
+  #reason { color: #ff8a8a; min-height: 24px; margin-bottom: 24px; }
+  .goal { text-align: left; background: rgba(255,255,255,.07); border-radius: 12px; padding: 14px 18px; margin: 10px 0; font-size: 20px; display: flex; gap: 12px; align-items: center; }
+  .goal small { display: block; opacity: .6; font-size: 13px; }
+  .goal button { background: none; border: 2px solid #8ab4ff; color: #8ab4ff; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; flex: none; }
+  .urgent { border-left: 4px solid #ff6b6b; }
+  #go { margin-top: 28px; font-size: 18px; padding: 12px 32px; border-radius: 10px; border: 0; background: #5b7cff; color: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🎯 Tes objectifs</h1>
+  <div id="reason"></div>
+  <div id="goals"></div>
+  <button id="go" disabled>Je m'y mets</button>
+</main>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+document.getElementById('reason').textContent = new URLSearchParams(location.search).get('reason') || '';
+const go = document.getElementById('go');
+// Petit délai pour forcer la lecture avant de pouvoir fermer
+let left = 5;
+const t = setInterval(() => {
+  go.textContent = left > 0 ? `Je m'y mets (${left})` : "Je m'y mets";
+  if (left-- <= 0) { clearInterval(t); go.disabled = false; }
+}, 1000);
+go.onclick = () => caly.closeFocus();
+async function render() {
+  const { goals } = await caly.getState();
+  const el = document.getElementById('goals');
+  el.innerHTML = goals.slice(0, 5).map((g) =>
+    `<div class="goal ${g.status === 'urgent' ? 'urgent' : ''}"><button data-id="${esc(g.id)}">✓</button><div>${esc(g.title)}<small>${esc(g.description)}</small></div></div>`
+  ).join('') || '<p>Aucun objectif en attente 🎉</p>';
+  el.querySelectorAll('button').forEach((b) => b.onclick = () => caly.completeTask(b.dataset.id));
+}
+caly.onUpdate(render);
+render();
+</script>
+</body>
+</html>

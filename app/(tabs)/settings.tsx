@@ -7,6 +7,7 @@ import type { MonitoringConfig, NotificationConfig } from '@/services/monitoring
 import { useEmpire } from '@/contexts/EmpireContext';
 import { SwipeableTabWrapper } from '@/components/common/SwipeableTabWrapper';
 import GoogleCalendarSettings from '@/components/settings/GoogleCalendarSettings';
+import DesktopSyncSettings from '@/components/settings/DesktopSyncSettings';
 
 export default function Settings() {
   const { projects, isMonitoringActive, startMonitoring, stopMonitoring } = useEmpire();
@@ -166,6 +167,7 @@ export default function Settings() {
 
       {/* Google Calendar Sync */}
       <GoogleCalendarSettings />
+      <DesktopSyncSettings />
 
       {/* État du Monitoring */}
       <Card style={styles.card} mode="contained">

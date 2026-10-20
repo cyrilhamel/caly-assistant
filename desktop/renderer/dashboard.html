@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Caly Desktop</title>
+<style>
+  body { margin: 0; padding: 24px; background: #12141f; color: #eee; font-family: 'Segoe UI', sans-serif; }
+  h2 { margin: 24px 0 8px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; opacity: .7; }
+  .card { background: #1c1f30; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; }
+  .bar { height: 6px; background: #5b7cff; border-radius: 3px; margin-top: 4px; }
+  .bar.bad { background: #ff6b6b; }
+  .row { display: flex; justify-content: space-between; align-items: center; }
+  input[type=text], input[type=number] { background: #12141f; color: #eee; border: 1px solid #333; border-radius: 6px; padding: 6px; width: 100%; box-sizing: border-box; }
+  label { display: block; margin: 8px 0; }
+  code { background: #000; padding: 2px 6px; border-radius: 4px; }
+  button { background: #5b7cff; color: #fff; border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Caly Desktop</h1>
+<div id="now"></div>
+
+<h2>Objectifs</h2><div id="goals"></div>
+<h2>Temps d'écran aujourd'hui</h2><div id="usage"></div>
+
+<h2>Réglages</h2>
+<div class="card">
+  <label>Mots-clés distractifs (séparés par des virgules, process ou titre de fenêtre)
+    <input type="text" id="distractions"></label>
+  <label>Seuil de rappel (secondes de distraction par minute)
+    <input type="number" id="threshold" min="5" max="60"></label>
+  <label><input type="checkbox" id="block"> Mode blocage : écran plein écran à chaque distraction</label>
+  <label><input type="checkbox" id="startup"> Afficher l'écran objectifs au démarrage</label>
+  <button id="save">Enregistrer</button>
+</div>
+
+<h2>Synchronisation mobile</h2>
+<div class="card" id="sync"></div>
+
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (s) => s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.floor(s % 3600 / 60)} min` : `${Math.floor(s / 60)} min`;
+let formReady = false;
+
+async function render() {
+  const st = await caly.getState();
+  document.getElementById('now').textContent = st.current ? `En cours : ${st.current.process} — ${st.current.title}` : '';
+  document.getElementById('goals').innerHTML = st.goals.map((g) =>
+    `<div class="card row"><span>${esc(g.title)} <small>(${esc(g.status)})</small></span><button data-id="${esc(g.id)}">Terminé</button></div>`
+  ).join('') || '<div class="card">Aucun objectif en attente</div>';
+  document.querySelectorAll('#goals button').forEach((b) => b.onclick = () => caly.completeTask(b.dataset.id));
+
+  const entries = Object.entries(st.usage).sort((a, b) => b[1].seconds - a[1].seconds).slice(0, 10);
+  const max = entries.length ? entries[0][1].seconds : 1;
+  const total = Object.values(st.usage).reduce((a, u) => a + u.seconds, 0);
+  const dist = Object.values(st.usage).filter((u) => u.distracting).reduce((a, u) => a + u.seconds, 0);
+  document.getElementById('usage').innerHTML =
+    `<div class="card">Total : ${fmt(total)} — distractions : <b>${fmt(dist)}</b></div>` +
+    entries.map(([name, u]) =>
+      `<div class="card"><div class="row"><span>${esc(name)}</span><span>${fmt(u.seconds)}</span></div><div class="bar ${u.distracting ? 'bad' : ''}" style="width:${u.seconds / max * 100}%"></div></div>`
+    ).join('');
+
+  document.getElementById('sync').innerHTML =
+    `Dans l'app mobile, renseigne l'adresse <code>${st.addresses.map((a) => `${a}:${st.settings.port}`).join('</code> ou <code>')}</code> et le jeton <code>${esc(st.settings.token)}</code>.`;
+
+  if (!formReady) {
+    formReady = true;
+    document.getElementById('distractions').value = st.settings.distractions.join(', ');
+    document.getElementById('threshold').value = st.settings.distractionThreshold;
+    document.getElementById('block').checked = st.settings.blockMode;
+    document.getElementById('startup').checked = st.settings.showFocusAtStartup;
+  }
+}
+document.getElementById('save').onclick = () => caly.updateSettings({
+  distractions: document.getElementById('distractions').value.split(',').map((s) => s.trim()).filter(Boolean),
+  distractionThreshold: Math.min(60, Math.max(5, Number(document.getElementById('threshold').value) || 30)),
+  blockMode: document.getElementById('block').checked,
+  showFocusAtStartup: document.getElementById('startup').checked,
+});
+caly.onUpdate(render);
+render();
+</script>
+</body>
+</html>
